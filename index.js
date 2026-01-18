@@ -101,6 +101,55 @@ app.get('/usuarios/:codusu', async (req, res) => {
   }
 });
 
+app.put('/usuarios/:codusu', async (req, res) => {
+  try {
+    const codusu = Number(req.params.codusu);
+
+    if (!Number.isInteger(codusu) || codusu <= 0) {
+      return res.status(400).json({ error: 'codusu inválido' });
+    }
+
+    const { codemp, nomeusu, senha, email, ativo, nomecomp } = req.body;
+
+    // ✅ Monta update dinâmico: atualiza só o que veio no body
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (codemp !== undefined) { fields.push(`codemp = $${idx++}`); values.push(codemp); }
+    if (nomeusu !== undefined) { fields.push(`nomeusu = $${idx++}`); values.push(nomeusu); }
+    if (senha !== undefined) { fields.push(`senha = $${idx++}`); values.push(senha); }
+    if (email !== undefined) { fields.push(`email = $${idx++}`); values.push(email); }
+    if (ativo !== undefined) { fields.push(`ativo = $${idx++}`); values.push(ativo); }
+    if (nomecomp !== undefined) { fields.push(`nomecomp = $${idx++}`); values.push(nomecomp); }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+    }
+
+    // codusu sempre por último
+    values.push(codusu);
+
+    const sql = `
+      UPDATE public.usuarios
+      SET ${fields.join(', ')}
+      WHERE codusu = $${idx}
+      RETURNING codusu, codemp, nomeusu, email, ativo, nomecomp, dhinclusao
+    `;
+
+    const result = await pool.query(sql, values);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao atualizar usuário:', error);
+    return res.status(500).json({ error: 'Erro interno ao atualizar usuário' });
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
