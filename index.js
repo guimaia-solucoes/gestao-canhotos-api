@@ -57,6 +57,22 @@ app.post('/usuarios', async (req, res) => {
   }
 });
 
+app.get('/usuarios', async (req, res) => {
+  try {
+    const sql = `
+      SELECT codusu, codemp, nomeusu, email, ativo, nomecomp, dhinclusao
+      FROM public.usuarios
+      ORDER BY codusu DESC
+    `;
+
+    const result = await pool.query(sql);
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar usuários:', error);
+    return res.status(500).json({ error: 'Erro interno ao listar usuários' });
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
