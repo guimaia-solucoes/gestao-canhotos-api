@@ -73,6 +73,34 @@ app.get('/usuarios', async (req, res) => {
   }
 });
 
+app.get('/usuarios/:codusu', async (req, res) => {
+  try {
+    const codusu = Number(req.params.codusu);
+
+    if (!Number.isInteger(codusu) || codusu <= 0) {
+      return res.status(400).json({ error: 'codusu inválido' });
+    }
+
+    const sql = `
+      SELECT codusu, codemp, nomeusu, email, ativo, nomecomp, dhinclusao
+      FROM public.usuarios
+      WHERE codusu = $1
+      LIMIT 1
+    `;
+
+    const result = await pool.query(sql, [codusu]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao buscar usuário:', error);
+    return res.status(500).json({ error: 'Erro interno ao buscar usuário' });
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
