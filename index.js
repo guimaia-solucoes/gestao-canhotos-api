@@ -22,6 +22,42 @@ app.get('/health', async (req, res) => {
   }
 });
 
+app.post('/usuarios', async (req, res) => {
+  try {
+    const { codemp, nomeusu, senha, email, ativo, nomecomp } = req.body;
+
+    // validação mínima (bem simples)
+    if (!codemp || !nomeusu || !senha) {
+      return res.status(400).json({
+        error: 'codemp, nomeusu e senha são obrigatórios'
+      });
+    }
+
+    const sql = `
+      INSERT INTO usuarios (codemp, nomeusu, senha, email, ativo, nomecomp)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING codusu, codemp, nomeusu, email, ativo, nomecomp, dhinclusao
+    `;
+
+    const params = [
+      codemp,
+      nomeusu,
+      senha,
+      email || null,
+      ativo || 'S',
+      nomecomp || null
+    ];
+
+    const result = await pool.query(sql, params);
+
+    return res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao criar usuário:', error);
+    return res.status(500).json({ error: 'Erro interno ao criar usuário' });
+  }
+});
+
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
