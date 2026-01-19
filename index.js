@@ -29,6 +29,9 @@ app.get('/health', async (req, res) => {
   }
 });
 
+
+//USUÁRIOS 
+//( POST, PUT, GET )
 app.post('/usuarios', async (req, res) => {
   try {
     const { codemp, nomeusu, senha, email, ativo, nomecomp } = req.body;
@@ -69,7 +72,7 @@ app.get('/usuarios', async (req, res) => {
     const sql = `
       SELECT codusu, codemp, nomeusu, email, ativo, nomecomp, dhinclusao
       FROM public.usuarios
-      ORDER BY codusu DESC
+      ORDER BY codusu 
     `;
 
     const result = await pool.query(sql);
@@ -154,6 +157,25 @@ app.put('/usuarios/:codusu', async (req, res) => {
   } catch (error) {
     console.error('Erro ao atualizar usuário:', error);
     return res.status(500).json({ error: 'Erro interno ao atualizar usuário' });
+  }
+});
+
+
+//ENTREGAS
+//( POST, PUT, GET )
+app.get('/entregas', async (req, res) => {
+  try {
+    const sql = `
+      SELECT id,codemp,ordemcarga,numnota,cgccpf,endereco,numend,cidade,estado,chavenfe,vlrnota,nomeparc,razaosocial,nomebairro,telefone,dtinicial_entrega,assinado,checkinlatitude,checkinlongitude,checkindh,checkoutdh,assinadodh,latitude,longitude,logistica,assinatura,ad_apprecebedor,ad_appdocrecebedor,ad_apptipdocrecebedor,assinaturalatitude,assinaturalongitude,seqcarga,tipodoc,codmotorista,status,data_entrega
+      FROM public.entregas
+      ORDER BY id DESC
+    `;
+
+    const result = await pool.query(sql);
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar usuários:', error);
+    return res.status(500).json({ error: 'Erro interno ao listar usuários' });
   }
 });
 
