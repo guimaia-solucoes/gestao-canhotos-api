@@ -242,7 +242,7 @@ app.get('/entregas', async (req, res) => {
     const result = await pool.query(sql);
     return res.json(result.rows);
   } catch (error) {
-    console.error('Erro ao listar usuários:', error);
+    console.error('Erro ao listar usuários: ' + $error, error);
     return res.status(500).json({ error: 'Erro interno ao listar usuários' });
   }
 });
