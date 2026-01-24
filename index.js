@@ -165,7 +165,7 @@ app.put('/usuarios/:codusu', async (req, res) => {
 //( POST, PUT, GET )
 app.post('/entregas', async (req, res) => {
   try {
-    const { codemp, ordemcarga, numnota, cgccpf, endereco, numend, cidade, estado, chavenfe, vlrnota, nomeparc, razaosocial, nomebairro, telefone, dtinicial_entrega, assinado, checkinlatitude, checkinlongitude, checkindh, checkoutdh, assinadodh, latitude, longitude, logistica, assinatura, ad_apprecebedor, ad_appdocrecebedor, ad_apptipdocrecebedor, assinaturalatitude, assinaturalongitude, seqcarga, tipodoc, codmotorista, status, data_entrega, dhinclusao, codusuinclusao } = req.body;
+    const { codemp, ordemcarga } = req.body;
 
     // validação mínima (bem simples)
     /*if (!codemp || !nomeusu || !senha) {
@@ -175,49 +175,14 @@ app.post('/entregas', async (req, res) => {
     }*/
 
     const sql = `
-      INSERT INTO entregas (codemp, ordemcarga, numnota, cgccpf, endereco, numend, cidade, estado, chavenfe, vlrnota, nomeparc, razaosocial, nomebairro, telefone, dtinicial_entrega, assinado, checkinlatitude, checkinlongitude, checkindh, checkoutdh, assinadodh, latitude, longitude, logistica, assinatura, ad_apprecebedor, ad_appdocrecebedor, ad_apptipdocrecebedor, assinaturalatitude, assinaturalongitude, seqcarga, tipodoc, codmotorista, status, data_entrega, dhinclusao, codusuinclusao)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37)
-      RETURNING id, codemp, ordemcarga, numnota, cgccpf, endereco, numend, cidade, estado, chavenfe, vlrnota, nomeparc, razaosocial, nomebairro, telefone, dtinicial_entrega, assinado, checkinlatitude, checkinlongitude, checkindh, checkoutdh, assinadodh, latitude, longitude, logistica, assinatura, ad_apprecebedor, ad_appdocrecebedor, ad_apptipdocrecebedor, assinaturalatitude, assinaturalongitude, seqcarga, tipodoc, codmotorista, status, data_entrega, dhinclusao, codusuinclusao
+      INSERT INTO entregas (codemp, ordemcarga)
+      VALUES ($1, $2)
+      RETURNING id, codemp, ordemcarga
     `;
 
     const params = [
       codemp, 
-	  ordemcarga, 
-	  numnota, 
-	  cgccpf, 
-	  endereco, 
-	  numend, 
-	  cidade, 
-	  estado,
-	  chavenfe, 
-	  vlrnota, 
-	  nomeparc, 
-	  razaosocial,
-	  nomebairro, 
-	  telefone, 
-	  dtinicial_entrega, 
-	  assinado, 
-	  checkinlatitude, 
-	  checkinlongitude, 
-	  checkindh, 
-	  checkoutdh, 
-	  assinadodh, 
-	  latitude,
-	  longitude,
-	  logistica,
-	  assinatura,
-	  ad_apprecebedor,
-	  ad_appdocrecebedor,
-	  ad_apptipdocrecebedor,
-	  assinaturalatitude,
-	  assinaturalongitude,
-	  seqcarga,
-	  tipodoc,
-	  codmotorista,
-	  status,
-	  data_entrega,
-	  dhinclusao,
-	  codusuinclusao
+	  ordemcarga
     ];
 
     const result = await pool.query(sql, params);
