@@ -234,7 +234,7 @@ app.post('/entregas', async (req, res) => {
 app.get('/entregas', async (req, res) => {
   try {
     const sql = `
-      SELECT id, codemp,ordemcarga,numnota,cgccpf,endereco,numend,cidade,estado,chavenfe,vlrnota,nomeparc,razaosocial,nomebairro,telefone,dtinicial_entrega,assinado,checkinlatitude,checkinlongitude,checkindh,checkoutdh,assinadodh,latitude,longitude,logistica,assinatura,ad_apprecebedor,ad_appdocrecebedor,ad_apptipdocrecebedor,assinaturalatitude,assinaturalongitude,seqcarga,tipodoc,codmotorista,status,data_entrega
+      SELECT id,codemp,ordemcarga,numnota,cgccpf,endereco,numend,cidade,estado,chavenfe,vlrnota,nomeparc,razaosocial,nomebairro,telefone,dtinicial_entrega,assinado,checkinlatitude,checkinlongitude,checkindh,checkoutdh,assinadodh,latitude,longitude,logistica,assinatura,ad_apprecebedor,ad_appdocrecebedor,ad_apptipdocrecebedor,assinaturalatitude,assinaturalongitude,seqcarga,tipodoc,codmotorista,status,data_entrega
       FROM public.entregas
       ORDER BY id DESC
     `;
