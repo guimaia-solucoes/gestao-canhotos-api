@@ -1,8 +1,10 @@
 const express = require('express');
 const cors = require('cors');    
 const pool = require('./db/pool');
+const nfeImportRoutes = require("./routes/nfeImport.routes");
 
 const app = express();
+
 app.use(cors({
   origin: '*', // depois a gente restringe
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
@@ -10,6 +12,8 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// registra rota /api/nfe/importar-zip
+app.use("/api", nfeImportRoutes);
 
 const PORT = process.env.PORT || 3000;
 
@@ -234,7 +238,7 @@ app.post('/entregas', async (req, res) => {
 app.get('/entregas', async (req, res) => {
   try {
     const sql = `
-      SELECT id,codemp,ordemcarga,numnota,cgccpf,endereco,numend,cidade,estado,chavenfe,vlrnota,nomeparc,razaosocial,nomebairro,telefone,dtinicial_entrega,assinado,checkinlatitude,checkinlongitude,checkindh,checkoutdh,assinadodh,latitude,longitude,logistica,assinatura,ad_apprecebedor,ad_appdocrecebedor,ad_apptipdocrecebedor,assinaturalatitude,assinaturalongitude,seqcarga,tipodoc,codmotorista,status,data_entrega
+      SELECT id, codemp, ordemcarga, numnota,cgccpf,endereco,numend,cidade,estado,chavenfe,vlrnota,nomeparc,razaosocial,nomebairro,telefone,dtinicial_entrega,assinado,checkinlatitude,checkinlongitude,checkindh,checkoutdh,assinadodh,latitude,longitude,logistica,assinatura,ad_apprecebedor,ad_appdocrecebedor,ad_apptipdocrecebedor,assinaturalatitude,assinaturalongitude,seqcarga,tipodoc,codmotorista,status,data_entrega
       FROM public.entregas
       ORDER BY id DESC
     `;
