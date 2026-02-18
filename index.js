@@ -246,12 +246,12 @@ app.get('/entregas', async (req, res) => {
     const result = await pool.query(sql);
     return res.json(result.rows);
   } catch (error) {
-    console.error('Erro ao listar usuários: ' + $error, error);
+    console.error('Erro ao listar entregas:', error);
     return res.status(500).json({ error: 'Erro interno ao listar usuários' });
   }
 });
 
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
