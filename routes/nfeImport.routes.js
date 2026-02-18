@@ -135,9 +135,9 @@ router.post("/nfe/importar-zip", upload.single("arquivo"), async (req, res) => {
 
       const idNfe = await inserirEntregaNoBanco(registro);
 
-      if (itens.length > 0) {
-        await inserirItensEntregaNoBanco(idNfe, itens);
-      }
+      //if (itens.length > 0) {
+     //   await inserirItensEntregaNoBanco(idNfe, itens);
+     // }
 
       resultado.importados++;
     } catch (err) {
