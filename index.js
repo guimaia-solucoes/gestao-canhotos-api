@@ -76,6 +76,7 @@ app.get('/usuarios', async (req, res) => {
     const sql = `
       SELECT codusu, codemp, nomeusu, email, ativo, nomecomp, dhinclusao
       FROM public.usuarios
+	  WHERE dhexclusao IS NULL
       ORDER BY codusu 
     `;
 
@@ -123,7 +124,7 @@ app.put('/usuarios/:codusu', async (req, res) => {
       return res.status(400).json({ error: 'codusu inválido' });
     }
 
-    const { codemp, nomeusu, senha, email, ativo, nomecomp } = req.body;
+    const { codemp, nomeusu, senha, email, ativo, nomecomp, dhexclusao } = req.body;
 
     // ✅ Monta update dinâmico: atualiza só o que veio no body
     const fields = [];
@@ -136,6 +137,7 @@ app.put('/usuarios/:codusu', async (req, res) => {
     if (email !== undefined) { fields.push(`email = $${idx++}`); values.push(email); }
     if (ativo !== undefined) { fields.push(`ativo = $${idx++}`); values.push(ativo); }
     if (nomecomp !== undefined) { fields.push(`nomecomp = $${idx++}`); values.push(nomecomp); }
+	if (dhexclusao !== undefined) { fields.push(`dhexclusao = $${idx++}`); values.push(dhexclusao); }
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 'Nenhum campo para atualizar' });
@@ -148,7 +150,7 @@ app.put('/usuarios/:codusu', async (req, res) => {
       UPDATE public.usuarios
       SET ${fields.join(', ')}
       WHERE codusu = $${idx}
-      RETURNING codusu, codemp, nomeusu, email, ativo, nomecomp, dhinclusao
+      RETURNING codusu, codemp, nomeusu, email, ativo, nomecomp, dhinclusao, dhexclusao
     `;
 
     const result = await pool.query(sql, values);
