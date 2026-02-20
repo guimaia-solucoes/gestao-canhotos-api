@@ -34,7 +34,7 @@ app.get('/health', async (req, res) => {
 });
 
 
-//USUÁRIOS 
+//CADASTRO USUÁRIOS 
 //( POST, PUT, GET )
 app.post('/usuarios', async (req, res) => {
   try {
@@ -253,6 +253,26 @@ app.get('/entregas', async (req, res) => {
   }
 });
 
+
+/*CADASTRO DE EMPRESAS*/
+
+app.get('/empresas', async (req, res) => {
+  try {
+    const sql = `
+      SELECT codemp, cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, dhinclusao, ativo, latitude, longitude, dhexclusao
+	  FROM public.empresas
+      WHERE dhexclusao is null
+	  order by razaosocial
+	  
+    `;
+
+    const result = await pool.query(sql);
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar empresas:', error);
+    return res.status(500).json({ error: 'Erro interno ao listar empresas' });
+  }
+});
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor rodando na porta ${PORT}`);
