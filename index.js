@@ -36,6 +36,7 @@ app.get('/health', async (req, res) => {
 
 //CADASTRO USUÁRIOS 
 //( POST, PUT, GET )
+//Cadastrando usuários
 app.post('/usuarios', async (req, res) => {
   try {
     const { codemp, nomeusu, senha, email, ativo, nomecomp } = req.body;
@@ -71,6 +72,7 @@ app.post('/usuarios', async (req, res) => {
   }
 });
 
+//Consultar usuários
 app.get('/usuarios', async (req, res) => {
   try {
     const sql = `
@@ -116,6 +118,7 @@ app.get('/usuarios/:codusu', async (req, res) => {
   }
 });
 
+//Alterando usuários (update)
 app.put('/usuarios/:codusu', async (req, res) => {
   try {
     const codusu = Number(req.params.codusu);
@@ -278,9 +281,9 @@ app.post('/empresas', async (req, res) => {
   try {
     const { cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude } = req.body;
 
-	/*if (cnpj.length != 14) {
+	if (cnpj.length != 14) {
       return res.status(400).json({ error: 'CNPJ deve possuir 14 caracteres.' });
-    }*/
+    }
     
     const sql = `
       INSERT INTO empresas (cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude)
@@ -321,6 +324,83 @@ app.post('/empresas', async (req, res) => {
   });
   return res.status(500).json({
     error: 'Erro interno ao criar empresa',
+    pg: {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      column: error.column,
+    }
+  });
+}
+});
+
+
+//Alterando empresas (update)
+app.put('/empresas/:codemp', async (req, res) => {
+  try {
+    const codemp = Number(req.params.codemp);
+
+    if (!Number.isInteger(codemp) || codemp <= 0) {
+      return res.status(400).json({ error: 'Código da empresa inválido' });
+    }
+
+    const { cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude } = req.body;
+
+    // ✅ Monta update dinâmico: atualiza só o que veio no body
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (cnpj !== undefined) { fields.push(`cnpj = $${idx++}`); values.push(cnpj); }
+    if (razaosocial !== undefined) { fields.push(`razaosocial = $${idx++}`); values.push(razaosocial); }
+    if (nomefantasia !== undefined) { fields.push(`nomefantasia = $${idx++}`); values.push(nomefantasia); }
+    if (inscricaoestadual !== undefined) { fields.push(`inscricaoestadual = $${idx++}`); values.push(inscricaoestadual); }
+    if (emailcontato !== undefined) { fields.push(`emailcontato = $${idx++}`); values.push(emailcontato); }
+    if (emailfinanceiro !== undefined) { fields.push(`emailfinanceiro = $${idx++}`); values.push(emailfinanceiro); }
+	if (cep !== undefined) { fields.push(`cep = $${idx++}`); values.push(cep); }
+	if (endereco !== undefined) { fields.push(`endereco = $${idx++}`); values.push(endereco); }
+	if (numero !== undefined) { fields.push(`numero = $${idx++}`); values.push(numero); }
+	if (bairro !== undefined) { fields.push(`bairro = $${idx++}`); values.push(bairro); }
+	if (cidade !== undefined) { fields.push(`cidade = $${idx++}`); values.push(cidade); }
+	if (estado !== undefined) { fields.push(`estado = $${idx++}`); values.push(estado); }
+	if (complemento !== undefined) { fields.push(`complemento = $${idx++}`); values.push(complemento); }
+	if (latitude !== undefined) { fields.push(`latitude = $${idx++}`); values.push(latitude); }
+	if (longitude !== undefined) { fields.push(`longitude = $${idx++}`); values.push(longitude); }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+    }
+
+    // codusu sempre por último
+    values.push(codusu);
+
+    const sql = `
+      UPDATE public.empresas
+      SET ${fields.join(', ')}
+      WHERE codemp = $${idx}
+      RETURNING cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude
+    `;
+
+    const result = await pool.query(sql, values);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Empresa não encontrado' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (error) {
+  console.error('BODY RECEBIDO:', req.body);
+  console.error('Erro ao atualizar a empresa:', {
+    message: error.message,
+    code: error.code,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    column: error.column,
+  });
+  return res.status(500).json({
+    error: 'Erro interno ao atualizar empresa',
     pg: {
       message: error.message,
       code: error.code,
