@@ -278,9 +278,9 @@ app.post('/empresas', async (req, res) => {
   try {
     const { cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude } = req.body;
 
-	if (cnpj.length != 14) {
+	/*if (cnpj.length != 14) {
       return res.status(400).json({ error: 'CNPJ deve possuir 14 caracteres.' });
-    }
+    }*/
     
     const sql = `
       INSERT INTO empresas (cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude)
@@ -310,9 +310,26 @@ app.post('/empresas', async (req, res) => {
 
     return res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao criar empresa:', error);
-    return res.status(500).json({ error: 'Erro interno ao criar empresa' });
-  }
+  console.error('BODY RECEBIDO:', req.body);
+  console.error('Erro ao criar empresa:', {
+    message: error.message,
+    code: error.code,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    column: error.column,
+  });
+  return res.status(500).json({
+    error: 'Erro interno ao criar empresa',
+    pg: {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      column: error.column,
+    }
+  });
+}
 });
 
 app.listen(PORT, "0.0.0.0", () => {
