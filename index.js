@@ -278,6 +278,9 @@ app.post('/empresas', async (req, res) => {
   try {
     const { cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude } = req.body;
 
+	if (cnpj.length != 14) {
+      return res.status(400).json({ error: 'CNPJ deve possuir 14 caracteres.' });
+    }
     
     const sql = `
       INSERT INTO empresas (cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude)
