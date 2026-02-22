@@ -255,7 +255,7 @@ app.get('/entregas', async (req, res) => {
 
 
 /*CADASTRO DE EMPRESAS*/
-
+/*BUSCANDO EMPRESAS*/
 app.get('/empresas', async (req, res) => {
   try {
     const sql = `
@@ -271,6 +271,44 @@ app.get('/empresas', async (req, res) => {
   } catch (error) {
     console.error('Erro ao listar empresas:', error);
     return res.status(500).json({ error: 'Erro interno ao listar empresas' });
+  }
+});
+
+app.post('/empresas', async (req, res) => {
+  try {
+    const { cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude } = req.body;
+
+    
+    const sql = `
+      INSERT INTO empresas (cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      RETURNING cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude
+    `;
+
+    const params = [
+      cnpj,
+	  razaosocial,
+	  nomefantasia,
+	  inscricaoestadual, 
+	  emailcontato, 
+	  emailfinanceiro, 
+	  cep, 
+	  endereco, 
+	  numero, 
+	  bairro, 
+	  cidade, 
+	  estado, 
+	  complemento, 
+	  latitude, 
+	  longitude
+    ];
+
+    const result = await pool.query(sql, params);
+
+    return res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao criar empresa:', error);
+    return res.status(500).json({ error: 'Erro interno ao criar empresa' });
   }
 });
 
