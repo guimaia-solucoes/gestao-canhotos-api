@@ -373,7 +373,7 @@ app.put('/empresas/:codemp', async (req, res) => {
     }
 
     // codusu sempre por último
-    values.push(codusu);
+    values.push(codemp);
 
     const sql = `
       UPDATE public.empresas
