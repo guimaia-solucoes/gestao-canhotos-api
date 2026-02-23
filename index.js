@@ -498,7 +498,7 @@ app.post('/motoristas', async (req, res) => {
 });
 
 //Alterando empresas (update)
-app.put('/empresas/:codmotorista', async (req, res) => {
+app.put('/motoristas/:codmotorista', async (req, res) => {
   try {
     const codmotorista = Number(req.params.codmotorista);
 
