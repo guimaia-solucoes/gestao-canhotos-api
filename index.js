@@ -413,6 +413,7 @@ app.put('/empresas/:codemp', async (req, res) => {
 
 
 /*CADASTRO DE MOTORISTAS*/
+//BUSCA DE MOTORISTAS
 app.get('/motoristas', async (req, res) => {
   try {
     const sql = `
@@ -427,6 +428,38 @@ app.get('/motoristas', async (req, res) => {
   } catch (error) {
     console.error('Erro ao listar motoristas:', error);
     return res.status(500).json({ error: 'Erro interno ao listar empresas' });
+  }
+});
+
+//Cadastrando MOTORISTAS
+app.post('/motoristas', async (req, res) => {
+  try {
+    const { codemp, nomeusu, senha, telefone, email, ativo, nomecomp, codappmotorista } = req.body;
+
+   
+    const sql = `
+      INSERT INTO motoristas (codemp, nomeusu, senha, telefone, email, ativo, nomecomp, codappmotorista)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING codmotorista, codemp, nomeusu, senha, telefone, email, ativo, nomecomp, codappmotorista
+    `;
+
+    const params = [
+      codemp,
+      nomeusu,
+      senha,
+      telefone,
+      email || null,
+      ativo || 'S',
+      nomecomp || null,
+      codappmotorista
+    ];
+
+    const result = await pool.query(sql, params);
+
+    return res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao criar motorista:', error);
+    return res.status(500).json({ error: 'Erro interno ao criar motorista' });
   }
 });
 
