@@ -439,7 +439,7 @@ app.post('/motoristas', async (req, res) => {
    
     const sql = `
       INSERT INTO motoristas (codemp, nomeusu, senha, telefone, email, ativo, nomecomp, codappmotorista)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8 )
       RETURNING codmotorista, codemp, nomeusu, senha, telefone, email, ativo, nomecomp, codappmotorista
     `;
 
