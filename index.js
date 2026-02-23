@@ -335,7 +335,6 @@ app.post('/empresas', async (req, res) => {
 }
 });
 
-
 //Alterando empresas (update)
 app.put('/empresas/:codemp', async (req, res) => {
   try {
@@ -411,6 +410,26 @@ app.put('/empresas/:codemp', async (req, res) => {
   });
 }
 });
+
+
+/*CADASTRO DE MOTORISTAS*/
+app.get('/motoristas', async (req, res) => {
+  try {
+    const sql = `
+      SELECT codmotorista, codemp, codappmotorista, nomeusu, senha, telefone, email, ativo, nomecomp, dhinclusao, dhexclusao
+      FROM public.motoristas
+      WHERE dhexclusao is null
+	  order by nomeusu	  
+    `;
+
+    const result = await pool.query(sql);
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar motoristas:', error);
+    return res.status(500).json({ error: 'Erro interno ao listar empresas' });
+  }
+});
+
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor rodando na porta ${PORT}`);
