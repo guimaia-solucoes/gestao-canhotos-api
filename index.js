@@ -497,6 +497,74 @@ app.post('/motoristas', async (req, res) => {
 }
 });
 
+//Alterando empresas (update)
+app.put('/empresas/:codmotorista', async (req, res) => {
+  try {
+    const codmotorista = Number(req.params.codmotorista);
+
+    if (!Number.isInteger(codmotorista) || codmotorista <= 0) {
+      return res.status(400).json({ error: 'Código do motorista inválido' });
+    }
+
+    const { nomeusu, senha, telefone, email, ativo, nomecomp, codappmotorista } = req.body;
+
+    // ✅ Monta update dinâmico: atualiza só o que veio no body
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (nomeusu !== undefined) { fields.push(`nomeusu = $${idx++}`); values.push(nomeusu); }
+    if (senha !== undefined) { fields.push(`senha = $${idx++}`); values.push(senha); }
+    if (telefone !== undefined) { fields.push(`telefone = $${idx++}`); values.push(telefone); }
+    if (email !== undefined) { fields.push(`email = $${idx++}`); values.push(email); }
+    if (ativo !== undefined) { fields.push(`ativo = $${idx++}`); values.push(ativo); }	
+    if (nomecomp !== undefined) { fields.push(`nomecomp = $${idx++}`); values.push(nomecomp); }
+	if (codappmotorista !== undefined) { fields.push(`codappmotorista = $${idx++}`); values.push(codappmotorista); }
+	
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+    }
+
+    // codusu sempre por último
+    values.push(codmotorista);
+
+    const sql = `
+      UPDATE public.motoristas
+      SET ${fields.join(', ')}
+      WHERE codmotorista = $${idx}
+      RETURNING codmotorista, nomeusu, senha, telefone, email, ativo, nomecomp, codappmotorista
+    `;
+
+    const result = await pool.query(sql, values);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Motorista não encontrado' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (error) {
+  console.error('BODY RECEBIDO:', req.body);
+  console.error('Erro ao atualizar a motorista:', {
+    message: error.message,
+    code: error.code,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    column: error.column,
+  });
+  return res.status(500).json({
+    error: 'Erro interno ao atualizar motorista',
+    pg: {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      column: error.column,
+    }
+  });
+}
+});
+
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor rodando na porta ${PORT}`);
