@@ -233,9 +233,26 @@ app.post('/entregas', async (req, res) => {
 
     return res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao criar entregas:', error);
-    return res.status(500).json({ error: 'Erro interno ao criar entregas' });
-  }
+  console.error('BODY RECEBIDO:', req.body);
+  console.error('Erro ao criar entrega:', {
+    message: error.message,
+    code: error.code,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    column: error.column,
+  });
+  return res.status(500).json({
+    error: 'Erro interno ao criar entrega',
+    pg: {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      column: error.column,
+    }
+  });
+}
 });
 
 
@@ -458,9 +475,26 @@ app.post('/motoristas', async (req, res) => {
 
     return res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao criar motorista:', error);
-    return res.status(500).json({ error: 'Erro interno ao criar motorista' });
-  }
+  console.error('BODY RECEBIDO:', req.body);
+  console.error('Erro ao criar entrega:', {
+    message: error.message,
+    code: error.code,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    column: error.column,
+  });
+  return res.status(500).json({
+    error: 'Erro interno ao criar entrega',
+    pg: {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      column: error.column,
+    }
+  });
+}
 });
 
 
