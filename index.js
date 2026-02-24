@@ -567,6 +567,154 @@ app.put('/motoristas/:codmotorista', async (req, res) => {
 });
 
 
+/*CADASTRO DE VEÍCULOS*/
+//BUSCA DE VEÍCULOS
+app.get('/veiculos', async (req, res) => {
+  try {
+    const sql = `
+      SELECT codveiculo, codemp, placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo, dhexclusao, dhinclusao
+      FROM public.veiculos
+      WHERE dhexclusao is null
+	  order by placa	  
+    `;
+
+    const result = await pool.query(sql);
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar veiculos:', error);
+    return res.status(500).json({ error: 'Erro interno ao listar veiculos' });
+  }
+});
+
+//Cadastrando VEÍCULOS
+app.post('/veiculos', async (req, res) => {
+  try {
+    const { codemp, placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo } = req.body;
+
+   
+    const sql = `
+      INSERT INTO motoristas (codemp, placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12  )
+      RETURNING codveiculo, codemp, placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo
+    `;
+
+    const params = [
+      codemp, 
+	  placa,
+	  renavam,
+	  chassi, 
+	  tipo_veiculo, 
+	  marca, 
+	  modelo, 
+	  ano_fabricacao, 
+	  ano_modelo, 
+	  cor, 
+	  peso_maximo, 
+	  volume_maximo
+    ];
+
+    const result = await pool.query(sql, params);
+
+    return res.status(201).json(result.rows[0]);
+  } catch (error) {
+  console.error('BODY RECEBIDO:', req.body);
+  console.error('Erro ao criar veículo:', {
+    message: error.message,
+    code: error.code,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    column: error.column,
+  });
+  return res.status(500).json({
+    error: 'Erro interno ao criar veículo',
+    pg: {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      column: error.column,
+    }
+  });
+}
+});
+
+//Alterando motoristas (update)
+app.put('/veiculos/:codveiculo', async (req, res) => {
+  try {
+    const codveiculo = Number(req.params.codveiculo);
+
+    if (!Number.isInteger(codveiculo) || codveiculo <= 0) {
+      return res.status(400).json({ error: 'Código do veículo inválido' });
+    }
+
+    const { placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo, dhexclusao } = req.body;
+
+    // ✅ Monta update dinâmico: atualiza só o que veio no body
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (placa !== undefined) { fields.push(`placa = $${idx++}`); values.push(placa); }
+    if (renavam !== undefined) { fields.push(`renavam = $${idx++}`); values.push(renavam); }
+    if (chassi !== undefined) { fields.push(`chassi = $${idx++}`); values.push(chassi); }
+    if (tipo_veiculo !== undefined) { fields.push(`tipo_veiculo = $${idx++}`); values.push(tipo_veiculo); }
+    if (marca !== undefined) { fields.push(`marca = $${idx++}`); values.push(marca); }	
+    if (modelo !== undefined) { fields.push(`modelo = $${idx++}`); values.push(modelo); }
+	if (ano_fabricacao !== undefined) { fields.push(`ano_fabricacao = $${idx++}`); values.push(ano_fabricacao); }
+	if (ano_modelo !== undefined) { fields.push(`ano_modelo = $${idx++}`); values.push(ano_modelo); }
+	if (cor !== undefined) { fields.push(`cor = $${idx++}`); values.push(cor); }
+	if (peso_maximo !== undefined) { fields.push(`peso_maximo = $${idx++}`); values.push(peso_maximo); }
+	if (volume_maximo !== undefined) { fields.push(`volume_maximo = $${idx++}`); values.push(volume_maximo); }
+	if (dhexclusao !== undefined) { fields.push(`dhexclusao = $${idx++}`); values.push(dhexclusao); }
+	
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+    }
+
+    // codusu sempre por último
+    values.push(codveiculo);
+
+    const sql = `
+      UPDATE public.veiculos
+      SET ${fields.join(', ')}
+      WHERE codveiculo = $${idx}
+      RETURNING codveiculo, placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo, dhexclusao
+    `;
+
+    const result = await pool.query(sql, values);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Veículo não encontrado' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (error) {
+  console.error('BODY RECEBIDO:', req.body);
+  console.error('Erro ao atualizar a veículo:', {
+    message: error.message,
+    code: error.code,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    column: error.column,
+  });
+  return res.status(500).json({
+    error: 'Erro interno ao atualizar veículo',
+    pg: {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      column: error.column,
+    }
+  });
+}
+});
+
+
+
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
