@@ -593,7 +593,7 @@ app.post('/veiculos', async (req, res) => {
 
    
     const sql = `
-      INSERT INTO motoristas (codemp, placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo)
+      INSERT INTO veiculos (codemp, placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12  )
       RETURNING codveiculo, codemp, placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo
     `;
