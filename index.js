@@ -383,6 +383,7 @@ app.put('/empresas/:codemp', async (req, res) => {
 	if (complemento !== undefined) { fields.push(`complemento = $${idx++}`); values.push(complemento); }
 	if (latitude !== undefined) { fields.push(`latitude = $${idx++}`); values.push(latitude); }
 	if (longitude !== undefined) { fields.push(`longitude = $${idx++}`); values.push(longitude); }
+	if (dhexclusao !== undefined) { fields.push(`dhexclusao = $${idx++}`); values.push(dhexclusao); }
 
     if (fields.length === 0) {
       return res.status(400).json({ error: 'Nenhum campo para atualizar' });
@@ -401,7 +402,7 @@ app.put('/empresas/:codemp', async (req, res) => {
     const result = await pool.query(sql, values);
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Empresa não encontrado' });
+      return res.status(404).json({ error: 'Empresa não encontrada' });
     }
 
     return res.json(result.rows[0]);
@@ -497,7 +498,7 @@ app.post('/motoristas', async (req, res) => {
 }
 });
 
-//Alterando empresas (update)
+//Alterando motoristas (update)
 app.put('/motoristas/:codmotorista', async (req, res) => {
   try {
     const codmotorista = Number(req.params.codmotorista);
