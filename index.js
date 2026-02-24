@@ -361,7 +361,7 @@ app.put('/empresas/:codemp', async (req, res) => {
       return res.status(400).json({ error: 'Código da empresa inválido' });
     }
 
-    const { cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude } = req.body;
+    const { cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude, dhexclusao } = req.body;
 
     // ✅ Monta update dinâmico: atualiza só o que veio no body
     const fields = [];
