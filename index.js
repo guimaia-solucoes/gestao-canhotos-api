@@ -256,7 +256,6 @@ app.post('/entregas', async (req, res) => {
 });
 
 
-
 app.get('/entregas', async (req, res) => {
   try {
     const sql = `
@@ -270,6 +269,26 @@ app.get('/entregas', async (req, res) => {
   } catch (error) {
     console.error('Erro ao listar entregas:', error);
     return res.status(500).json({ error: 'Erro interno ao listar usuários' });
+  }
+});
+
+
+
+/*ROMANEIOS / ORDENS DE CARGAS*/
+//BUSCA DE VEÍCULOS
+app.get('/romaneios', async (req, res) => {
+  try {
+    const sql = `
+      SELECT ocromaneio , data_criacao , data_entregasaida , motorista , duracaoest , kmest , status , qtdentregas , qtdfinalizadas , obs 
+	  FROM public.romaneios
+      order by ocromaneio desc	   
+    `;
+
+    const result = await pool.query(sql);
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar veiculos:', error);
+    return res.status(500).json({ error: 'Erro interno ao listar veiculos' });
   }
 });
 
@@ -711,6 +730,8 @@ app.put('/veiculos/:codveiculo', async (req, res) => {
   });
 }
 });
+
+
 
 
 

@@ -1,0 +1,6 @@
+- Verificar porque em alguns momentos não está fazendo a confirmação do apontamento.
+=> Fazer testes do apontamento de produção, está ficando como pendente alguns lançamentos...
+
+
+Verificar com o rastreador se tem API para trazemos as movimentações.
+=> 
