@@ -5,7 +5,6 @@ const nfeImportRoutes = require("./routes/nfeImport.routes");
 
 const app = express();
 
-const { execFile } = require('child_process');
 
 app.use(cors({
   origin: '*', // depois a gente restringe
@@ -736,12 +735,11 @@ app.put('/veiculos/:codveiculo', async (req, res) => {
 
 
 app.get('/debug/python', (req, res) => {
-  execFile('python3', ['--version'], (err, stdout, stderr) => {
-    if (err) return res.json({ ok: false, erro: err.message });
-    res.json({ ok: true, versao: stdout || stderr });
+  const { execFile } = require('child_process');
+  execFile('which', ['python3'], (err, stdout) => {
+    res.json({ python3: stdout || err?.message });
   });
 });
-
 
 
 app.listen(PORT, "0.0.0.0", () => {
