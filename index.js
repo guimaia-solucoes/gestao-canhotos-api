@@ -288,6 +288,57 @@ app.get('/entregas', async (req, res) => {
 });
 
 
+app.post('/entregas/importar-csv', async (req, res) => {
+  try {
+    const {
+      ordemcarga, numnota, cgccpf, endereco, numend,
+      cidade, estado, chavenfe, vlrnota, nomeparc,
+      razaosocial, nomebairro, telefone, latitude,
+      longitude, logistica, data_entrega
+    } = req.body;
+
+    const sql = `
+      INSERT INTO entregas (
+        ordemcarga, numnota, cgccpf, endereco, numend,
+        cidade, estado, chavenfe, vlrnota, nomeparc,
+        razaosocial, nomebairro, telefone, latitude,
+        longitude, logistica, data_entrega
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+      RETURNING id
+    `;
+
+    const params = [
+      ordemcarga || null,
+      numnota || null,
+      cgccpf || null,
+      endereco || null,
+      numend || null,
+      cidade || null,
+      estado || null,
+      chavenfe || null,
+      vlrnota ? Number(vlrnota) : null,
+      nomeparc || null,
+      razaosocial || null,
+      nomebairro || null,
+      telefone || null,
+      latitude ? Number(latitude) : null,
+      longitude ? Number(longitude) : null,
+      logistica || null,
+      data_entrega || null,
+    ];
+
+    const { rows } = await pool.query(sql, params);
+    return res.status(201).json({ id: rows[0].id });
+
+  } catch (error) {
+    return res.status(500).json({
+      error: 'Erro ao importar entrega',
+      detail: error.message
+    });
+  }
+});
+
 
 /*ROMANEIOS / ORDENS DE CARGAS*/
 //BUSCA DE VEÍCULOS
