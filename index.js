@@ -600,25 +600,27 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
     const osrmUrl = `/trip/v1/driving/${coordStr}?source=first&destination=last&geometries=geojson`;
 
     const osrmResult = await new Promise((resolve, reject) => {
-      const options = {
-        hostname: '134.122.113.67',
-        port: 5000,
-        path: osrmUrl,
-        method: 'GET',
-      };
+	  const options = {
+		hostname: '134.122.113.67',
+		port: 5000,
+		path: osrmUrl,
+		method: 'GET',
+	  };
 
-      http.get(options, (osrmRes) => {
-        let data = '';
-        osrmRes.on('data', chunk => data += chunk);
-        osrmRes.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch {
-            reject(new Error('Erro ao parsear resposta do OSRM'));
-          }
-        });
-      }).on('error', reject);
-    });
+	  http.get(options, (osrmRes) => {
+		let data = '';
+		osrmRes.on('data', chunk => data += chunk);
+		osrmRes.on('end', () => {
+		  try {
+			const parsed = JSON.parse(data);
+			console.log('[OSRM response]', JSON.stringify(parsed).slice(0, 500)); // ✅ loga os primeiros 500 chars
+			resolve(parsed);
+		  } catch {
+			reject(new Error('Erro ao parsear resposta do OSRM'));
+		  }
+		});
+	  }).on('error', reject);
+	});
 
     if (osrmResult.code !== 'Ok') {
       return res.status(500).json({ ok: false, msg: `OSRM retornou erro: ${osrmResult.code}` });
