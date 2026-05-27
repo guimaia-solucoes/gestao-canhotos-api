@@ -735,12 +735,11 @@ app.put('/veiculos/:codveiculo', async (req, res) => {
 
 
 app.get('/debug/python', (req, res) => {
-  const { execFile } = require('child_process');
-  execFile('which', ['python3'], (err, stdout) => {
-    res.json({ python3: stdout || err?.message });
+  const { exec } = require('child_process');
+  exec('ls /usr/bin/python* 2>/dev/null; ls /usr/local/bin/python* 2>/dev/null; which node', (err, stdout) => {
+    res.json({ resultado: stdout });
   });
 });
-
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor rodando na porta ${PORT}`);
