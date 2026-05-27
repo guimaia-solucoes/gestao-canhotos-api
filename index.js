@@ -376,9 +376,9 @@ app.get('/romaneios/roteiro/:oc', async (req, res) => {
 
      const result = await pool.query(sql, [oc]);
 
-    if (result.rowCount === 0) {
+    /*if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Ordem de Carga/Romaneio sem entregas' });
-    }
+    }*/
 	
 	
     return res.json(result.rows);
