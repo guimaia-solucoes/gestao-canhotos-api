@@ -358,6 +358,38 @@ app.get('/romaneios', async (req, res) => {
   }
 });
 
+app.get('/romaneios/roteiro/:oc', async (req, res) => {
+  try {
+	  
+	 const oc = Number(req.params.oc);
+
+    if (!Number.isInteger(oc) || oc <= 0) {
+      return res.status(400).json({ error: 'Ordem de Carga inválida' });
+    }
+	  	
+    const sql = `
+      SELECT id, codemp, ordemcarga, numnota,cgccpf,endereco,numend,cidade,estado,chavenfe,vlrnota,nomeparc,razaosocial,nomebairro,telefone,dtinicial_entrega,assinado,checkinlatitude,checkinlongitude,checkindh,checkoutdh,assinadodh,COALESCE(latitude,0) as latitude ,COALESCE(longitude,0) as longitude,logistica,assinatura,ad_apprecebedor,ad_appdocrecebedor,ad_apptipdocrecebedor,assinaturalatitude,assinaturalongitude, COALESCE(seqcarga,0) as seqcarga,tipodoc,codmotorista, status, data_entrega
+      FROM public.entregas
+	  WHERE ordemcarga = $1
+      ORDER BY id DESC
+    `;
+
+     const result = await pool.query(sql, [oc]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Ordem de Carga/Romaneio sem entregas' });
+    }
+	
+	
+    return res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao listar entregas:', error);
+    return res.status(500).json({ error: 'Erro interno ao listar usuários' });
+  }
+});
+
+
+
 
 /*CADASTRO DE EMPRESAS*/
 /*BUSCANDO EMPRESAS*/
@@ -798,21 +830,6 @@ app.put('/veiculos/:codveiculo', async (req, res) => {
 });
 
 
-
-app.get('/debug/python', (req, res) => {
-  const { execFile } = require('child_process');
-  execFile('/mise/installs/python/3.11.15/bin/python3', ['-c', 'import reportlab; print(reportlab.Version)'], (err, stdout, stderr) => {
-    res.json({ ok: !err, versao: stdout || stderr || err?.message });
-  });
-});
-
-
-app.get('/debug/pip', (req, res) => {
-  const { exec } = require('child_process');
-  exec('/mise/installs/python/3.11.15/bin/python3 -m pip install reportlab', (err, stdout, stderr) => {
-    res.json({ ok: !err, out: stdout, err: stderr });
-  });
-});
 
 
 
