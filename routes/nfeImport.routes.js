@@ -125,7 +125,7 @@ router.post("/nfe/importar-zip", upload.single("arquivo"), async (req, res) => {
 		  razaosocial: destNome || null,
 		  nomebairro: enderDest?.xBairro || null,
 		  telefone: dest?.fone || null,
-		  xml_nfe: chave,
+		  xml_nfe: xml || null,
 	};
 
       const jaExiste = await existeChaveNoBanco(chave);
