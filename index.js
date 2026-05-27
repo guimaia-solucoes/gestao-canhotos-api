@@ -627,11 +627,28 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
         [wp.waypoint_index, entregas[i].id]
       );
     }
+	
+	// 6) Extrai distância, duração e coordenadas do resultado OSRM
+	const trip = osrmResult.trips[0];
+	const distanciaKm = (trip.distance / 1000).toFixed(2) + ' km';
+	const duracaoMin = Math.round(trip.duration / 60) + ' min';
+	const coordenadas = JSON.stringify(trip.geometry.coordinates);
+	
+	// 7) Atualiza romaneio com distância, duração e coordenadas
+	await pool.query(
+	  `UPDATE public.romaneios
+	   SET kmest = $1, duracaoest = $2, coordenada = $3
+	   WHERE ocromaneio = $4`,
+	  [distanciaKm, duracaoMin, coordenadas, ordemcarga]
+	);
+	
 
     return res.json({
-      ok: true,
-      total: entregas.length,
-    });
+	  ok: true,
+	  total: entregas.length,
+	  kmest: distanciaKm,
+	  duracaoest: duracaoMin,
+	});
 
   } catch (error) {
     console.error('[roteirizar]', error);
