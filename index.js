@@ -736,8 +736,8 @@ app.put('/veiculos/:codveiculo', async (req, res) => {
 
 app.get('/debug/python', (req, res) => {
   const { execFile } = require('child_process');
-  execFile('which', ['python3'], (err, stdout) => {
-    res.json({ python3: stdout || err?.message });
+  execFile('/mise/installs/python/3.11.15/bin/python3', ['-c', 'import reportlab; print(reportlab.Version)'], (err, stdout, stderr) => {
+    res.json({ ok: !err, versao: stdout || stderr || err?.message });
   });
 });
 

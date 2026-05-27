@@ -32,7 +32,7 @@ const pool = new Pool({
 const PYTHON_SCRIPT = path.join(__dirname, 'danfe_generator.py');
 
 // Python executável (ajuste se necessário: 'python3' ou 'python')
-const PYTHON_BIN = process.env.PYTHON_BIN || 'python3';
+const PYTHON_BIN = process.env.PYTHON_BIN || '/mise/installs/python/3.11.15/bin/python3';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GERA DANFE A PARTIR DE XML STRING
