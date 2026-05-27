@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');    
 const pool = require('./db/pool');
+
 const nfeImportRoutes = require("./routes/nfeImport.routes");
+const danfeService = require('./danfe.service');
 
 const app = express();
 
@@ -26,6 +28,7 @@ app.use(express.json());
 
 // registra rota /api/nfe/importar-zip
 app.use("/api", nfeImportRoutes);
+danfeService.registerRoutes(app); 
 
 const PORT = process.env.PORT || 3000;
 
