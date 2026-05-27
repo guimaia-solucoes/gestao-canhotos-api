@@ -741,6 +741,15 @@ app.get('/debug/python', (req, res) => {
   });
 });
 
+app.get('/debug/pip', (req, res) => {
+  const { exec } = require('child_process');
+  exec('/mise/installs/python/3.11.15/bin/python3 -m pip install reportlab', (err, stdout, stderr) => {
+    res.json({ ok: !err, out: stdout, err: stderr });
+  });
+});
+
+
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
