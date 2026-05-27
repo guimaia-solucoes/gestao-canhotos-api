@@ -581,18 +581,23 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
       });
     }
 
-    // 3) Monta coordenadas para o OSRM: origem + entregas
-    const todasCoordenadas = [origem, ...entregas.map(e => ({
-      latitude: parseFloat(e.latitude),
-      longitude: parseFloat(e.longitude),
-    }))];
+    
+    // 3) Monta coordenadas: origem + entregas + origem (para destination=last)
+		const todasCoordenadas = [
+		  origem,
+		  ...entregas.map(e => ({
+			latitude: parseFloat(e.latitude),
+			longitude: parseFloat(e.longitude),
+		  })),
+		  origem, // ✅ repete a empresa como destino final
+		];
 
     const coordStr = todasCoordenadas
-      .map(c => `${c.longitude},${c.latitude}`)
-      .join(';');
+	  .map(c => `${c.longitude},${c.latitude}`)
+	  .join(';');
 
-    // 4) Chama OSRM Trip API
-    const osrmUrl = `/trip/v1/driving/${coordStr}?source=first&roundtrip=false&geometries=geojson`;
+    // 4) Chama OSRM Trip API igual ao seu Java
+    const osrmUrl = `/trip/v1/driving/${coordStr}?source=first&destination=last&geometries=geojson`;
 
     const osrmResult = await new Promise((resolve, reject) => {
       const options = {
@@ -619,22 +624,15 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
       return res.status(500).json({ ok: false, msg: `OSRM retornou erro: ${osrmResult.code}` });
     }
 
-    // 5) O OSRM retorna waypoints com waypoint_index (ordem otimizada)
-    // waypoints[0] = origem (empresa), ignoramos ela na sequência
-    const waypoints = osrmResult.waypoints;
-
-    // Monta mapa: waypoint_index → entrega
-    // waypoints[i].waypoint_index = posição otimizada
-    // waypoints[i].trips_index = índice da trip
-    // O índice 0 nos waypoints = origem (empresa), índices 1..N = entregas
-    const sequencia = waypoints
-      .filter((_, i) => i > 0) // remove origem
-      .sort((a, b) => a.waypoint_index - b.waypoint_index)
-      .map((wp, seq) => ({
-        id: entregas[wp.waypoint_index - 1]?.id, // -1 por conta da origem
-        seqcarga: seq + 1,
-      }))
-      .filter(e => e.id != null);
+    // 5) Monta sequência — ignora primeiro (empresa origem) e último (empresa destino)
+		const sequencia = waypoints
+		  .filter((_, i) => i > 0 && i < waypoints.length - 1) // ✅ remove origem e destino
+		  .sort((a, b) => a.waypoint_index - b.waypoint_index)
+		  .map((wp, seq) => ({
+			id: entregas[wp.waypoint_index - 1]?.id,
+			seqcarga: seq + 1,
+		  }))
+		  .filter(e => e.id != null);
 
     // 6) Atualiza seqcarga no banco
     for (const item of sequencia) {
