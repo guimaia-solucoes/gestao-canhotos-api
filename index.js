@@ -545,17 +545,14 @@ const http = require('http');
 
 app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
   const { ordemcarga } = req.params;
-
   try {
     // 1) Busca empresa (ponto de partida)
     const { rows: empresa } = await pool.query(
       `SELECT latitude, longitude FROM public.empresas LIMIT 1`
     );
-
     if (!empresa.length || !empresa[0].latitude || !empresa[0].longitude) {
       return res.status(400).json({ ok: false, msg: 'Endereço da empresa sem coordenadas.' });
     }
-
     const origem = {
       latitude: parseFloat(empresa[0].latitude),
       longitude: parseFloat(empresa[0].longitude),
@@ -567,13 +564,12 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
        FROM public.entregas
        WHERE ordemcarga = $1
        AND latitude IS NOT NULL
-	   AND latitude <> 0
+       AND latitude <> 0
        AND longitude IS NOT NULL
-	   AND longitude  <> 0
+       AND longitude <> 0
        ORDER BY id`,
       [ordemcarga]
     );
-
     if (entregas.length === 0) {
       return res.status(400).json({
         ok: false,
@@ -581,73 +577,60 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
       });
     }
 
-    
-    // 3) Monta coordenadas: origem + entregas + origem (para destination=last)
-		const todasCoordenadas = [
-		  origem,
-		  ...entregas.map(e => ({
-			latitude: parseFloat(e.latitude),
-			longitude: parseFloat(e.longitude),
-		  })),
-		  origem, // ✅ repete a empresa como destino final
-		];
-
+    // 3) Monta coordenadas: origem + entregas + origem (destination=last)
+    const todasCoordenadas = [
+      origem,
+      ...entregas.map(e => ({
+        latitude: parseFloat(e.latitude),
+        longitude: parseFloat(e.longitude),
+      })),
+      origem,
+    ];
     const coordStr = todasCoordenadas
-	  .map(c => `${c.longitude},${c.latitude}`)
-	  .join(';');
+      .map(c => `${c.longitude},${c.latitude}`)
+      .join(';');
 
-    // 4) Chama OSRM Trip API igual ao seu Java
+    // 4) Chama OSRM Trip API
     const osrmUrl = `/trip/v1/driving/${coordStr}?source=first&destination=last&geometries=geojson`;
-
     const osrmResult = await new Promise((resolve, reject) => {
-	  const options = {
-		hostname: '134.122.113.67',
-		port: 5000,
-		path: osrmUrl,
-		method: 'GET',
-	  };
-
-	  http.get(options, (osrmRes) => {
-		let data = '';
-		osrmRes.on('data', chunk => data += chunk);
-		osrmRes.on('end', () => {
-		  try {
-			const parsed = JSON.parse(data);
-			console.log('[OSRM response]', JSON.stringify(parsed).slice(0, 500)); // ✅ loga os primeiros 500 chars
-			resolve(parsed);
-		  } catch {
-			reject(new Error('Erro ao parsear resposta do OSRM'));
-		  }
-		});
-	  }).on('error', reject);
-	});
+      const options = {
+        hostname: '134.122.113.67',
+        port: 5000,
+        path: osrmUrl,
+        method: 'GET',
+      };
+      http.get(options, (osrmRes) => {
+        let data = '';
+        osrmRes.on('data', chunk => data += chunk);
+        osrmRes.on('end', () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch {
+            reject(new Error('Erro ao parsear resposta do OSRM'));
+          }
+        });
+      }).on('error', reject);
+    });
 
     if (osrmResult.code !== 'Ok') {
       return res.status(500).json({ ok: false, msg: `OSRM retornou erro: ${osrmResult.code}` });
     }
 
-    // 5) Monta sequência — ignora primeiro (empresa origem) e último (empresa destino)
-		const sequencia = waypoints
-		  .filter((_, i) => i > 0 && i < waypoints.length - 1) // ✅ remove origem e destino
-		  .sort((a, b) => a.waypoint_index - b.waypoint_index)
-		  .map((wp, seq) => ({
-			id: entregas[wp.waypoint_index - 1]?.id,
-			seqcarga: seq + 1,
-		  }))
-		  .filter(e => e.id != null);
-
-    // 6) Atualiza seqcarga no banco
-    for (const item of sequencia) {
+    // 5) Atualiza seqcarga no banco — igual lógica Java
+    // waypoints[0] = empresa (ignora), waypoints[1..N] = entregas na ordem da query
+    const waypoints = osrmResult.waypoints;
+    for (let i = 0; i < entregas.length; i++) {
+      const wp = waypoints[i + 1]; // +1 pula a empresa
+      if (!wp) continue;
       await pool.query(
         `UPDATE public.entregas SET seqcarga = $1 WHERE id = $2`,
-        [item.seqcarga, item.id]
+        [wp.waypoint_index, entregas[i].id]
       );
     }
 
     return res.json({
       ok: true,
-      total: sequencia.length,
-      sequencia,
+      total: entregas.length,
     });
 
   } catch (error) {
@@ -655,7 +638,6 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
     return res.status(500).json({ ok: false, error: error.message });
   }
 });
-
 
 /*CADASTRO DE EMPRESAS*/
 /*BUSCANDO EMPRESAS*/
