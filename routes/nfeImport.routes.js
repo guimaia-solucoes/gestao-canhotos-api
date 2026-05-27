@@ -125,6 +125,7 @@ router.post("/nfe/importar-zip", upload.single("arquivo"), async (req, res) => {
 		  razaosocial: destNome || null,
 		  nomebairro: enderDest?.xBairro || null,
 		  telefone: dest?.fone || null,
+		  xml_nfe: xml?.fone || null,
 	};
 
       const jaExiste = await existeChaveNoBanco(chave);
@@ -165,9 +166,9 @@ async function inserirEntregaNoBanco(registro) {
   const sql = `
     INSERT INTO public.entregas (
       numnota, cgccpf, endereco, numend, cidade, estado,
-      chavenfe, vlrnota, nomeparc, razaosocial, nomebairro, telefone
+      chavenfe, vlrnota, nomeparc, razaosocial, nomebairro, telefone, xml_nfe
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, $13)
     RETURNING id
   `;
 
@@ -184,6 +185,7 @@ async function inserirEntregaNoBanco(registro) {
     registro.razaosocial,
     registro.nomebairro,
     registro.telefone,
+	registro.xml_nfe,
   ];
 
   const { rows } = await pool.query(sql, params);
