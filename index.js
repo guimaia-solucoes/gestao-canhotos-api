@@ -4,6 +4,7 @@ const pool = require('./db/pool');
 
 const nfeImportRoutes = require("./routes/nfeImport.routes");
 const danfeService = require('./danfe.service');
+const { buscarLatLongComDelay } = require('./services/geocoding.service');
 
 const app = express();
 
@@ -388,6 +389,57 @@ app.put('/entregas/:id', async (req, res) => {
 });
 
 
+app.post('/entregas/geocodificar/:ordemcarga', async (req, res) => {
+  const { ordemcarga } = req.params;
+
+  try {
+    // Busca entregas da OC sem lat/long
+    const { rows } = await pool.query(
+      `SELECT id, endereco, numend, nomebairro, cidade, estado
+       FROM public.entregas
+       WHERE ordemcarga = $1
+       AND (latitude IS NULL OR longitude IS NULL)`,
+      [ordemcarga]
+    );
+
+    if (rows.length === 0) {
+      return res.json({ ok: true, msg: 'Nenhuma entrega para geocodificar.', total: 0 });
+    }
+
+    let sucesso = 0;
+    let semResultado = 0;
+
+    for (const entrega of rows) {
+      const { latitude, longitude } = await buscarLatLongComDelay(
+        entrega.endereco,
+        entrega.numend,
+        entrega.nomebairro,
+        entrega.cidade,
+        entrega.estado
+      );
+
+      if (latitude && longitude) {
+        await pool.query(
+          `UPDATE public.entregas SET latitude = $1, longitude = $2 WHERE id = $3`,
+          [latitude, longitude, entrega.id]
+        );
+        sucesso++;
+      } else {
+        semResultado++;
+      }
+    }
+
+    return res.json({
+      ok: true,
+      total: rows.length,
+      sucesso,
+      semResultado,
+    });
+
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
 
 /*ROMANEIOS / ORDENS DE CARGAS*/
 //BUSCA DE VEÍCULOS
@@ -434,6 +486,58 @@ app.get('/romaneios/roteiro/:oc', async (req, res) => {
   } catch (error) {
     console.error('Erro ao listar entregas:', error);
     return res.status(500).json({ error: 'Erro interno ao listar usuários' });
+  }
+});
+
+app.post('/romaneios/geocodificar/:ordemcarga', async (req, res) => {
+  const { ordemcarga } = req.params;
+
+  try {
+    // Busca entregas da OC sem lat/long
+    const { rows } = await pool.query(
+      `SELECT id, endereco, numend, nomebairro, cidade, estado
+       FROM public.entregas
+       WHERE ordemcarga = $1
+       AND (latitude IS NULL OR longitude IS NULL or latitude = 0 or longitude = 0)`,
+      [ordemcarga]
+    );
+
+    if (rows.length === 0) {
+      return res.json({ ok: true, msg: 'Nenhuma entrega para geocodificar.', total: 0 });
+    }
+
+    let sucesso = 0;
+    let semResultado = 0;
+
+    for (const entrega of rows) {
+      const { latitude, longitude } = await buscarLatLongComDelay(
+        entrega.endereco,
+        entrega.numend,
+        entrega.nomebairro,
+        entrega.cidade,
+        entrega.estado
+      );
+
+      if (latitude && longitude) {
+        await pool.query(
+          `UPDATE public.entregas SET latitude = $1, longitude = $2 WHERE id = $3`,
+          [latitude, longitude, entrega.id]
+        );
+        sucesso++;
+      } else {
+        semResultado++;
+      }
+    }
+
+    return res.json({
+      ok: true,
+      total: rows.length,
+      sucesso,
+      semResultado,
+    });
+
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
   }
 });
 
