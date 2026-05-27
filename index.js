@@ -5,6 +5,17 @@ const nfeImportRoutes = require("./routes/nfeImport.routes");
 
 const app = express();
 
+const { execSync } = require('child_process');
+
+try {
+  execSync(
+    '/mise/installs/python/3.11.15/bin/python3 -m pip install reportlab --quiet',
+    { stdio: 'inherit' }
+  );
+  console.log('[startup] reportlab OK');
+} catch (e) {
+  console.error('[startup] erro ao instalar reportlab:', e.message);
+}
 
 app.use(cors({
   origin: '*', // depois a gente restringe
@@ -740,6 +751,7 @@ app.get('/debug/python', (req, res) => {
     res.json({ ok: !err, versao: stdout || stderr || err?.message });
   });
 });
+
 
 app.get('/debug/pip', (req, res) => {
   const { exec } = require('child_process');
