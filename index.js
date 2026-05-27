@@ -637,7 +637,7 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
 	// 7) Atualiza romaneio com distância, duração e coordenadas
 	await pool.query(
 	  `UPDATE public.romaneios
-	   SET kmest = $1, duracaoest = $2, coordenada = $3
+	   SET kmest = $1, duracaoest = $2, coordenadas = $3
 	   WHERE ocromaneio = $4`,
 	  [distanciaKm, duracaoMin, coordenadas, ordemcarga]
 	);
