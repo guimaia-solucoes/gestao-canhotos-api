@@ -544,6 +544,7 @@ app.post('/romaneios/geocodificar/:ordemcarga', async (req, res) => {
 const http = require('http');
 
 app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
+			
   const { ordemcarga } = req.params;
   try {
     // 1) Busca empresa (ponto de partida)
@@ -652,6 +653,26 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
 
   } catch (error) {
     console.error('[roteirizar]', error);
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+
+app.get('/romaneios/coordenada/:ordemcarga', async (req, res) => {
+  const { ordemcarga } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT coordenada FROM public.romaneios WHERE ocromaneio = $1`,
+      [ordemcarga]
+    );
+
+    if (!rows.length || !rows[0].coordenada) {
+      return res.json({ ok: false, coordenada: null });
+    }
+
+    return res.json({ ok: true, coordenada: rows[0].coordenada });
+
+  } catch (error) {
     return res.status(500).json({ ok: false, error: error.message });
   }
 });
