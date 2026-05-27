@@ -187,6 +187,7 @@ app.put('/usuarios/:codusu', async (req, res) => {
 
 //ENTREGAS
 //( POST, PUT, GET )
+//INSERIR AS ENTREGAS
 app.post('/entregas', async (req, res) => {
   try {
     const { codemp, ordemcarga, numnota, cgccpf, endereco, numend, cidade, estado, chavenfe, vlrnota, nomeparc, razaosocial, nomebairro, telefone, dtinicial_entrega, assinado, checkinlatitude, checkinlongitude, checkindh, checkoutdh, assinadodh, latitude, longitude, logistica, assinatura, ad_apprecebedor, ad_appdocrecebedor, ad_apptipdocrecebedor, assinaturalatitude, assinaturalongitude, seqcarga, tipodoc, codmotorista, status, data_entrega, dhinclusao, codusuinclusao } = req.body;
@@ -271,6 +272,7 @@ app.post('/entregas', async (req, res) => {
 });
 
 
+//BUSCAR AS ENTREGAS
 app.get('/entregas', async (req, res) => {
   try {
     const sql = `
@@ -288,6 +290,7 @@ app.get('/entregas', async (req, res) => {
 });
 
 
+//IMPORTAR ENTREGAS VIA CSV, MODELO PADRÃO BAIXADO
 app.post('/entregas/importar-csv', async (req, res) => {
   try {
     const {
@@ -339,6 +342,52 @@ app.post('/entregas/importar-csv', async (req, res) => {
   }
 });
 
+//Alterando usuários (update)
+app.put('/entregas/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'Id. da entrega é inválida' });
+    }
+
+    const { ordemcarga  } = req.body;
+
+    // ✅ Monta update dinâmico: atualiza só o que veio no body
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (ordemcarga !== undefined) { fields.push(`ordemcarga = $${idx++}`); values.push(ordemcarga); }
+ 
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+    }
+
+    // codusu sempre por último
+    values.push(id);
+
+    const sql = `
+      UPDATE public.entregas
+      SET ${fields.join(', ')}
+      WHERE id = $${idx}
+      RETURNING id
+    `;
+
+    const result = await pool.query(sql, values);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Entrega não encontrada' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao atualizar entrega:', error);
+    return res.status(500).json({ error: 'Erro interno ao atualizar entrega' });
+  }
+});
+
+
 
 /*ROMANEIOS / ORDENS DE CARGAS*/
 //BUSCA DE VEÍCULOS
@@ -387,7 +436,6 @@ app.get('/romaneios/roteiro/:oc', async (req, res) => {
     return res.status(500).json({ error: 'Erro interno ao listar usuários' });
   }
 });
-
 
 
 
