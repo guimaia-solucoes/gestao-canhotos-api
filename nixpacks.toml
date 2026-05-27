@@ -1,5 +1,2 @@
-[phases.setup]
-nixPkgs = ["python3"]
-
 [phases.install]
-cmds = ["pip install reportlab --break-system-packages"]
+cmds = ["pip install reportlab"]
