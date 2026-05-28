@@ -441,8 +441,55 @@ app.post('/entregas/geocodificar/:ordemcarga', async (req, res) => {
   }
 });
 
+
+
 /*ROMANEIOS / ORDENS DE CARGAS*/
 //BUSCA DE VEÍCULOS
+
+app.post('/romaneios', async (req, res) => {
+  try {
+    const { cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude } = req.body;
+
+	    
+    const sql = `
+      INSERT INTO romaneios (data_entregasaida, codmotorista, codveiculo)
+      VALUES ($1, $2, $3)
+      RETURNING ocromaneio
+    `;
+
+    const params = [
+      data_entregasaida,
+	  codmotorista,
+	  codveiculo	  
+    ];
+
+    const result = await pool.query(sql, params);
+
+    return res.status(201).json(result.rows[0]);
+  } catch (error) {
+  console.error('BODY RECEBIDO:', req.body);
+  console.error('Erro ao criar romaneio:', {
+    message: error.message,
+    code: error.code,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    column: error.column,
+  });
+  return res.status(500).json({
+    error: 'Erro interno ao criar romaneio',
+    pg: {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      column: error.column,
+    }
+  });
+}
+});
+
+
 app.get('/romaneios', async (req, res) => {
   try {
     const sql = `
@@ -679,6 +726,11 @@ app.get('/romaneios/coordenada/:ordemcarga', async (req, res) => {
     return res.status(500).json({ ok: false, error: error.message });
   }
 });
+
+
+
+
+
 
 /*CADASTRO DE EMPRESAS*/
 /*BUSCANDO EMPRESAS*/
