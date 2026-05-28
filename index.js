@@ -662,15 +662,18 @@ app.get('/romaneios/coordenada/:ordemcarga', async (req, res) => {
   const { ordemcarga } = req.params;
   try {
     const { rows } = await pool.query(
-      `SELECT coordenadas FROM public.romaneios WHERE ocromaneio = $1`,
+      `SELECT coordenadas, kmest, duracaoest FROM public.romaneios WHERE ocromaneio = $1`,
       [ordemcarga]
     );
 
-    if (!rows.length || !rows[0].coordenadas) {
-      return res.json({ ok: false, coordenadas: null });
-    }
+    if (!rows.length) return res.json({ ok: false, coordenadas: null });
 
-    return res.json({ ok: true, coordenadas: rows[0].coordenadas });
+    return res.json({
+      ok: true,
+      coordenadas: rows[0].coordenadas,
+      kmest: rows[0].kmest || '',
+      duracaoest: rows[0].duracaoest || '',
+    });
 
   } catch (error) {
     return res.status(500).json({ ok: false, error: error.message });
