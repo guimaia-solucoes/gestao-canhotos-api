@@ -448,7 +448,7 @@ app.post('/entregas/geocodificar/:ordemcarga', async (req, res) => {
 
 app.post('/romaneios', async (req, res) => {
   try {
-    const { cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude } = req.body;
+    const { data_entregasaida, codmotorista, codveiculo } = req.body;
 
 	    
     const sql = `
