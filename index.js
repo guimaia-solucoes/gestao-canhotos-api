@@ -832,6 +832,17 @@ app.put('/empresas/:codemp', async (req, res) => {
 }
 });
 
+app.get('/empresas/coordenadas', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT latitude, longitude FROM public.empresas LIMIT 1`
+    );
+    if (!rows.length) return res.json({ ok: false });
+    return res.json({ ok: true, latitude: rows[0].latitude, longitude: rows[0].longitude });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
 
 /*CADASTRO DE MOTORISTAS*/
 //BUSCA DE MOTORISTAS
