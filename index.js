@@ -348,6 +348,8 @@ app.put('/entregas/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
 
+console.log('[PUT /entregas] body recebido:', JSON.stringify(req.body));
+
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'Id. da entrega é inválida' });
     }
