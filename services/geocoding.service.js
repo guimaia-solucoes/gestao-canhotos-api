@@ -2,15 +2,13 @@ const https = require('https');
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Em geocoding.service.js, remova o fallback e retorne null
 async function buscarLatLong(endereco, numero, bairro, cidade, estado) {
   if (!endereco || !cidade || !estado) {
     return { latitude: null, longitude: null };
   }
 
-  // Monta rua com número se disponível
   const street = numero ? `${endereco}, ${numero}` : endereco;
-
-  // Monta o estado por extenso se vier sigla (SP → São Paulo)
   const estadoExtenso = estadoPorSigla(estado);
 
   const params = new URLSearchParams({
@@ -35,15 +33,14 @@ async function buscarLatLong(endereco, numero, bairro, cidade, estado) {
         try {
           const json = JSON.parse(data);
           if (json.length > 0) {
-            // Pega o resultado de maior importance
             const melhor = json.sort((a, b) => b.importance - a.importance)[0];
             resolve({
               latitude: parseFloat(melhor.lat),
               longitude: parseFloat(melhor.lon),
             });
           } else {
-            // Fallback: tenta só com cidade e estado
-            resolve(buscarLatLongCidade(cidade, estadoExtenso));
+            // ✅ Não usa fallback — retorna null se não encontrou
+            resolve({ latitude: null, longitude: null });
           }
         } catch {
           resolve({ latitude: null, longitude: null });
