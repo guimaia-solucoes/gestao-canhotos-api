@@ -348,13 +348,13 @@ app.put('/entregas/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
 
-console.log('[PUT /entregas] body recebido:', JSON.stringify(req.body));
+    console.log('[PUT /entregas] body recebido:', JSON.stringify(req.body));
 
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'Id. da entrega é inválida' });
     }
 
-    const { ordemcarga  } = req.body;
+    const { ordemcarga, seqcarga } = req.body;
 
     // ✅ Monta update dinâmico: atualiza só o que veio no body
     const fields = [];
@@ -362,6 +362,7 @@ console.log('[PUT /entregas] body recebido:', JSON.stringify(req.body));
     let idx = 1;
 
     if (ordemcarga !== undefined) { fields.push(`ordemcarga = $${idx++}`); values.push(ordemcarga); }
+	if (seqcarga !== undefined) { fields.push(`seqcarga = $${idx++}`); values.push(seqcarga); }
  
     if (fields.length === 0) {
       return res.status(400).json({ error: 'Nenhum campo para atualizar' });
