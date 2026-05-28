@@ -343,7 +343,7 @@ app.post('/entregas/importar-csv', async (req, res) => {
   }
 });
 
-//Alterando usuários (update)
+//Alterando ordem de carga (update)
 app.put('/entregas/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -383,9 +383,19 @@ app.put('/entregas/:id', async (req, res) => {
 
     return res.json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao atualizar entrega:', error);
-    return res.status(500).json({ error: 'Erro interno ao atualizar entrega' });
-  }
+  console.error('Erro ao atualizar entrega:', {
+    message: error.message,
+    code: error.code,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    column: error.column,
+  });
+  return res.status(500).json({ 
+    error: 'Erro interno ao atualizar entrega',
+    detail: error.message  // ✅ retorna o detalhe no response
+  });
+ }
 });
 
 
@@ -444,7 +454,7 @@ app.post('/entregas/geocodificar/:ordemcarga', async (req, res) => {
 
 
 /*ROMANEIOS / ORDENS DE CARGAS*/
-//BUSCA DE VEÍCULOS
+//CRIAÇÃO DE NOVO ROMANEIO
 
 app.post('/romaneios', async (req, res) => {
   try {
