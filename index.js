@@ -7,6 +7,7 @@ const danfeService = require('./danfe.service');
 const { buscarLatLongComDelay } = require('./services/geocoding.service');
 const authRoutes = require('./routes/auth.routes'); 
 
+
 const app = express();
 
 const { execSync } = require('child_process');
