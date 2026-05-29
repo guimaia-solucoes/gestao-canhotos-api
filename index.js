@@ -502,7 +502,6 @@ app.post('/romaneios', async (req, res) => {
 }
 });
 
-
 app.get('/romaneios', async (req, res) => {
   try {
     const sql = `
@@ -717,7 +716,6 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
   }
 });
 
-
 app.get('/romaneios/coordenada/:ordemcarga', async (req, res) => {
   const { ordemcarga } = req.params;
   try {
@@ -743,6 +741,77 @@ app.get('/romaneios/coordenada/:ordemcarga', async (req, res) => {
   }
 });
 
+//Alterando Romaneio/Roteiro
+app.put('/romaneios/:ordemcarga', async (req, res) => {
+  try {
+    const ordemcarga = Number(req.params.ordemcarga);
+
+    if (!Number.isInteger(ordemcarga) || ordemcarga <= 0) {
+      return res.status(400).json({ error: 'Código da ordem de carga é inválido' });
+    }
+
+    const { data_entregasaida, motorista, duracaoest, kmest, status, qtdentregas, qtdfinalizadas, obs, coordenadas, codveiculo, codmotorista } = req.body;
+
+    // ✅ Monta update dinâmico: atualiza só o que veio no body
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (data_entregasaida !== undefined) { fields.push(`data_entregasaida = $${idx++}`); values.push(data_entregasaida); }
+    if (motorista !== undefined) { fields.push(`motorista = $${idx++}`); values.push(motorista); }
+    if (duracaoest !== undefined) { fields.push(`duracaoest = $${idx++}`); values.push(duracaoest); }
+    if (kmest !== undefined) { fields.push(`kmest = $${idx++}`); values.push(kmest); }
+    if (status !== undefined) { fields.push(`status = $${idx++}`); values.push(status); }
+    if (qtdentregas !== undefined) { fields.push(`qtdentregas = $${idx++}`); values.push(qtdentregas); }
+	if (qtdfinalizadas !== undefined) { fields.push(`qtdfinalizadas = $${idx++}`); values.push(qtdfinalizadas); }
+	if (obs !== undefined) { fields.push(`obs = $${idx++}`); values.push(obs); }
+	if (coordenadas !== undefined) { fields.push(`coordenadas = $${idx++}`); values.push(coordenadas); }
+	if (codveiculo !== undefined) { fields.push(`codveiculo = $${idx++}`); values.push(codveiculo); }
+	if (codmotorista !== undefined) { fields.push(`codmotorista = $${idx++}`); values.push(codmotorista); }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'Nenhum campo para atualizar' });
+    }
+
+    // codusu sempre por último
+    values.push(ordemcarga);
+
+    const sql = `
+      UPDATE public.romaneios
+      SET ${fields.join(', ')}
+      WHERE ordemcarga = $${idx}
+      RETURNING ordemcarga, data_entregasaida, motorista, duracaoest, kmest, status, qtdentregas, qtdfinalizadas, obs, coordenadas, codveiculo, codmotorista
+    `;
+
+    const result = await pool.query(sql, values);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Ordem de carga não encontrada' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (error) {
+  console.error('BODY RECEBIDO:', req.body);
+  console.error('Erro ao atualizar a ordem de carga:', {
+    message: error.message,
+    code: error.code,
+    detail: error.detail,
+    constraint: error.constraint,
+    table: error.table,
+    column: error.column,
+  });
+  return res.status(500).json({
+    error: 'Erro interno ao atualizar a ordem de carga',
+    pg: {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      column: error.column,
+    }
+  });
+}
+});
 
 
 
