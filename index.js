@@ -5,6 +5,7 @@ const pool = require('./db/pool');
 const nfeImportRoutes = require("./routes/nfeImport.routes");
 const danfeService = require('./danfe.service');
 const { buscarLatLongComDelay } = require('./services/geocoding.service');
+const authRoutes = require('./routes/auth.routes'); 
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use(cors({
 app.use(express.json());
 
 // registra rota /api/nfe/importar-zip
+app.use('/api/auth', authRoutes);  
 app.use("/api", nfeImportRoutes);
 danfeService.registerRoutes(app); 
 
