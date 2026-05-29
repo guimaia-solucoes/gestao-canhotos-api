@@ -779,8 +779,8 @@ app.put('/romaneios/:ordemcarga', async (req, res) => {
     const sql = `
       UPDATE public.romaneios
       SET ${fields.join(', ')}
-      WHERE ordemcarga = $${idx}
-      RETURNING ordemcarga, data_entregasaida, motorista, duracaoest, kmest, status, qtdentregas, qtdfinalizadas, obs, coordenadas, codveiculo, codmotorista
+      WHERE ocromaneio = $${idx}
+      RETURNING ocromaneio, data_entregasaida, motorista, duracaoest, kmest, status, qtdentregas, qtdfinalizadas, obs, coordenadas, codveiculo, codmotorista
     `;
 
     const result = await pool.query(sql, values);
