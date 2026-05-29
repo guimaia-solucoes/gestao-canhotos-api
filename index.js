@@ -6,6 +6,7 @@ const nfeImportRoutes = require("./routes/nfeImport.routes");
 const danfeService = require('./danfe.service');
 const { buscarLatLongComDelay } = require('./services/geocoding.service');
 const authRoutes = require('./routes/auth.routes'); 
+const { authMiddleware } = require('./middleware/auth.middleware');
 
 
 const app = express();
@@ -52,11 +53,11 @@ app.get('/health', async (req, res) => {
   }
 });
 
-
+//atualizado
 //CADASTRO USUÁRIOS 
 //( POST, PUT, GET )
 //Cadastrando usuários
-app.post('/usuarios', async (req, res) => {
+app.post('/usuarios', authMiddleware, async (req, res) => {
   try {
     const { codemp, nomeusu, senha, email, ativo, nomecomp } = req.body;
 
@@ -92,7 +93,7 @@ app.post('/usuarios', async (req, res) => {
 });
 
 //Consultar usuários
-app.get('/usuarios', async (req, res) => {
+app.get('/usuarios', authMiddleware, async (req, res) => {
   try {
     const sql = `
       SELECT codusu, codemp, nomeusu, email, ativo, nomecomp, dhinclusao
@@ -109,7 +110,7 @@ app.get('/usuarios', async (req, res) => {
   }
 });
 
-app.get('/usuarios/:codusu', async (req, res) => {
+app.get('/usuarios/:codusu', authMiddleware, async (req, res) => {
   try {
     const codusu = Number(req.params.codusu);
 
@@ -138,7 +139,7 @@ app.get('/usuarios/:codusu', async (req, res) => {
 });
 
 //Alterando usuários (update)
-app.put('/usuarios/:codusu', async (req, res) => {
+app.put('/usuarios/:codusu', authMiddleware, async (req, res) => {
   try {
     const codusu = Number(req.params.codusu);
 
@@ -192,7 +193,7 @@ app.put('/usuarios/:codusu', async (req, res) => {
 //ENTREGAS
 //( POST, PUT, GET )
 //INSERIR AS ENTREGAS
-app.post('/entregas', async (req, res) => {
+app.post('/entregas', authMiddleware, async (req, res) => {
   try {
     const { codemp, ordemcarga, numnota, cgccpf, endereco, numend, cidade, estado, chavenfe, vlrnota, nomeparc, razaosocial, nomebairro, telefone, dtinicial_entrega, assinado, checkinlatitude, checkinlongitude, checkindh, checkoutdh, assinadodh, latitude, longitude, logistica, assinatura, ad_apprecebedor, ad_appdocrecebedor, ad_apptipdocrecebedor, assinaturalatitude, assinaturalongitude, seqcarga, tipodoc, codmotorista, status, data_entrega, dhinclusao, codusuinclusao } = req.body;
 
@@ -276,8 +277,9 @@ app.post('/entregas', async (req, res) => {
 });
 
 
+
 //BUSCAR AS ENTREGAS
-app.get('/entregas', async (req, res) => {
+app.get('/entregas', authMiddleware, async (req, res) => {
   try {
     const sql = `
       SELECT id, codemp, ordemcarga, numnota,cgccpf,endereco,numend,cidade,estado,chavenfe,vlrnota,nomeparc,razaosocial,nomebairro,telefone,dtinicial_entrega,assinado,checkinlatitude,checkinlongitude,checkindh,checkoutdh,assinadodh,COALESCE(latitude,0) as latitude ,COALESCE(longitude,0) as longitude,logistica,assinatura,ad_apprecebedor,ad_appdocrecebedor,ad_apptipdocrecebedor,assinaturalatitude,assinaturalongitude, COALESCE(seqcarga,0) as seqcarga,tipodoc,codmotorista, status, data_entrega
@@ -295,7 +297,7 @@ app.get('/entregas', async (req, res) => {
 
 
 //IMPORTAR ENTREGAS VIA CSV, MODELO PADRÃO BAIXADO
-app.post('/entregas/importar-csv', async (req, res) => {
+app.post('/entregas/importar-csv', authMiddleware, async (req, res) => {
   try {
     const {
       ordemcarga, numnota, cgccpf, endereco, numend,
@@ -347,7 +349,7 @@ app.post('/entregas/importar-csv', async (req, res) => {
 });
 
 //Alterando ordem de carga (update)
-app.put('/entregas/:id', async (req, res) => {
+app.put('/entregas/:id', authMiddleware, async (req, res) => {
   try {
     const id = Number(req.params.id);
 
@@ -405,7 +407,7 @@ app.put('/entregas/:id', async (req, res) => {
 });
 
 
-app.post('/entregas/geocodificar/:ordemcarga', async (req, res) => {
+app.post('/entregas/geocodificar/:ordemcarga', authMiddleware, async (req, res) => {
   const { ordemcarga } = req.params;
 
   try {
@@ -462,7 +464,7 @@ app.post('/entregas/geocodificar/:ordemcarga', async (req, res) => {
 /*ROMANEIOS / ORDENS DE CARGAS*/
 //CRIAÇÃO DE NOVO ROMANEIO
 
-app.post('/romaneios', async (req, res) => {
+app.post('/romaneios', authMiddleware, async (req, res) => {
   try {
     const { data_entregasaida, codmotorista, codveiculo } = req.body;
 
@@ -505,7 +507,7 @@ app.post('/romaneios', async (req, res) => {
 }
 });
 
-app.get('/romaneios', async (req, res) => {
+app.get('/romaneios', authMiddleware, async (req, res) => {
   try {
     const sql = `
       SELECT ocromaneio , data_criacao , TO_CHAR(data_entregasaida, 'DD/MM/YYYY') as data_entregasaida , motorista , duracaoest , kmest , status , qtdentregas , qtdfinalizadas , obs 
@@ -521,7 +523,7 @@ app.get('/romaneios', async (req, res) => {
   }
 });
 
-app.get('/romaneios/roteiro/:oc', async (req, res) => {
+app.get('/romaneios/roteiro/:oc', authMiddleware, async (req, res) => {
   try {
 	  
 	 const oc = Number(req.params.oc);
@@ -551,7 +553,7 @@ app.get('/romaneios/roteiro/:oc', async (req, res) => {
   }
 });
 
-app.post('/romaneios/geocodificar/:ordemcarga', async (req, res) => {
+app.post('/romaneios/geocodificar/:ordemcarga', authMiddleware, async (req, res) => {
   const { ordemcarga } = req.params;
 
   try {
@@ -605,7 +607,7 @@ app.post('/romaneios/geocodificar/:ordemcarga', async (req, res) => {
 
 const http = require('http');
 
-app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
+app.post('/romaneios/roteirizar/:ordemcarga', authMiddleware, async (req, res) => {
 			
   const { ordemcarga } = req.params;
   try {
@@ -719,7 +721,7 @@ app.post('/romaneios/roteirizar/:ordemcarga', async (req, res) => {
   }
 });
 
-app.get('/romaneios/coordenada/:ordemcarga', async (req, res) => {
+app.get('/romaneios/coordenada/:ordemcarga', authMiddleware, async (req, res) => {
   const { ordemcarga } = req.params;
   try {
     const { rows } = await pool.query(
@@ -745,7 +747,7 @@ app.get('/romaneios/coordenada/:ordemcarga', async (req, res) => {
 });
 
 //Alterando Romaneio/Roteiro
-app.put('/romaneios/:ordemcarga', async (req, res) => {
+app.put('/romaneios/:ordemcarga', authMiddleware, async (req, res) => {
   try {
     const ordemcarga = Number(req.params.ordemcarga);
 
@@ -822,7 +824,7 @@ app.put('/romaneios/:ordemcarga', async (req, res) => {
 
 /*CADASTRO DE EMPRESAS*/
 /*BUSCANDO EMPRESAS*/
-app.get('/empresas', async (req, res) => {
+app.get('/empresas', authMiddleware, async (req, res) => {
   try {
     const sql = `
       SELECT codemp, cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, dhinclusao, ativo, latitude, longitude, dhexclusao
@@ -840,7 +842,7 @@ app.get('/empresas', async (req, res) => {
   }
 });
 
-app.post('/empresas', async (req, res) => {
+app.post('/empresas', authMiddleware, async (req, res) => {
   try {
     const { cnpj, razaosocial, nomefantasia, inscricaoestadual, emailcontato, emailfinanceiro, cep, endereco, numero, bairro, cidade, estado, complemento, latitude, longitude } = req.body;
 
@@ -899,7 +901,7 @@ app.post('/empresas', async (req, res) => {
 });
 
 //Alterando empresas (update)
-app.put('/empresas/:codemp', async (req, res) => {
+app.put('/empresas/:codemp', authMiddleware, async (req, res) => {
   try {
     const codemp = Number(req.params.codemp);
 
@@ -975,7 +977,7 @@ app.put('/empresas/:codemp', async (req, res) => {
 }
 });
 
-app.get('/empresas/coordenadas', async (req, res) => {
+app.get('/empresas/coordenadas', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT latitude, longitude FROM public.empresas LIMIT 1`
@@ -989,7 +991,7 @@ app.get('/empresas/coordenadas', async (req, res) => {
 
 /*CADASTRO DE MOTORISTAS*/
 //BUSCA DE MOTORISTAS
-app.get('/motoristas', async (req, res) => {
+app.get('/motoristas', authMiddleware, async (req, res) => {
   try {
     const sql = `
       SELECT codmotorista, codemp, codappmotorista, nomeusu, senha, telefone, email, ativo, nomecomp, dhinclusao, dhexclusao
@@ -1007,7 +1009,7 @@ app.get('/motoristas', async (req, res) => {
 });
 
 //Cadastrando MOTORISTAS
-app.post('/motoristas', async (req, res) => {
+app.post('/motoristas', authMiddleware, async (req, res) => {
   try {
     const { codemp, nomeusu, senha, telefone, email, ativo, nomecomp, codappmotorista } = req.body;
 
@@ -1056,7 +1058,7 @@ app.post('/motoristas', async (req, res) => {
 });
 
 //Alterando motoristas (update)
-app.put('/motoristas/:codmotorista', async (req, res) => {
+app.put('/motoristas/:codmotorista', authMiddleware, async (req, res) => {
   try {
     const codmotorista = Number(req.params.codmotorista);
 
@@ -1126,7 +1128,7 @@ app.put('/motoristas/:codmotorista', async (req, res) => {
 
 /*CADASTRO DE VEÍCULOS*/
 //BUSCA DE VEÍCULOS
-app.get('/veiculos', async (req, res) => {
+app.get('/veiculos', authMiddleware, async (req, res) => {
   try {
     const sql = `
       SELECT codveiculo, codemp, placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo, dhexclusao, dhinclusao
@@ -1144,7 +1146,7 @@ app.get('/veiculos', async (req, res) => {
 });
 
 //Cadastrando VEÍCULOS
-app.post('/veiculos', async (req, res) => {
+app.post('/veiculos', authMiddleware, async (req, res) => {
   try {
     const { codemp, placa, renavam, chassi, tipo_veiculo, marca, modelo, ano_fabricacao, ano_modelo, cor, peso_maximo, volume_maximo } = req.body;
 
@@ -1197,7 +1199,7 @@ app.post('/veiculos', async (req, res) => {
 });
 
 //Alterando motoristas (update)
-app.put('/veiculos/:codveiculo', async (req, res) => {
+app.put('/veiculos/:codveiculo', authMiddleware, async (req, res) => {
   try {
     const codveiculo = Number(req.params.codveiculo);
 
