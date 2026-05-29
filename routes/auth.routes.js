@@ -35,7 +35,7 @@ router.post('/login', async (req, res) => {
          u.email,
          u.senha,
          u.ativo,
-         e.nomeemp
+         e.nomefantasia
        FROM public.usuarios u
        LEFT JOIN public.empresas e ON e.codemp = u.codemp
        WHERE LOWER(u.email) = LOWER($1)
@@ -87,7 +87,7 @@ router.post('/login', async (req, res) => {
         email: usuario.email,
       },
       JWT_SECRET,
-      { expiresIn: '12h' } // ajuste conforme necessidade
+      { expiresIn: '8h' } // ajuste conforme necessidade
     );
 
     // ── Retorno ────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ router.post('/login', async (req, res) => {
         nomecomp: usuario.nomecomp,
         email: usuario.email,
         ativo: usuario.ativo,
-        nomeemp: usuario.nomeemp || null,
+        nomefantasia: usuario.nomefantasia || null,
       },
     });
 
@@ -134,7 +134,7 @@ router.get('/me', authMiddleware, async (req, res) => {
          u.nomecomp,
          u.email,
          u.ativo,
-         e.nomeemp
+         e.nomefantasia
        FROM public.usuarios u
        LEFT JOIN public.empresas e ON e.codemp = u.codemp
        WHERE u.codusu = $1
@@ -169,7 +169,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         nomecomp: u.nomecomp,
         email: u.email,
         ativo: u.ativo,
-        nomeemp: u.nomeemp || null,
+        nomefantasia: u.nomefantasia || null,
       },
     });
 
