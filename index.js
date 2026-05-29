@@ -722,7 +722,7 @@ app.get('/romaneios/coordenada/:ordemcarga', async (req, res) => {
   const { ordemcarga } = req.params;
   try {
     const { rows } = await pool.query(
-      `SELECT coordenadas, kmest, duracaoest FROM public.romaneios WHERE ocromaneio = $1`,
+      `SELECT coordenadas, kmest, duracaoest, placa, motorista, status as statusoc FROM public.romaneios WHERE ocromaneio = $1`,
       [ordemcarga]
     );
 
@@ -733,6 +733,9 @@ app.get('/romaneios/coordenada/:ordemcarga', async (req, res) => {
       coordenadas: rows[0].coordenadas,
       kmest: rows[0].kmest || '',
       duracaoest: rows[0].duracaoest || '',
+	  placa: rows[0].placa || '',
+	  motorista: rows[0].motorista || '',
+	  statusoc: rows[0].statusoc || '',
     });
 
   } catch (error) {
