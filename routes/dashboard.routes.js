@@ -203,7 +203,7 @@ ocor_dia AS (
   SELECT
     o.dhocor::date AS dia,
     COUNT(*)::int  AS ocorrencias
-  FROM public.ocorrencias o
+  FROM public.entregas_ocorrencias o
   JOIN base b ON b.id = o.${OCOR_FK}
   GROUP BY o.dhocor::date
 ),
