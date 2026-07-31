@@ -7,6 +7,8 @@ const danfeService = require('./danfe.service');
 const { buscarLatLongComDelay } = require('./services/geocoding.service');
 const authRoutes = require('./routes/auth.routes'); 
 const { authMiddleware } = require('./middleware/auth.middleware');
+const dashboardRoutes = require('./routes/dashboard.routes');
+app.use('/api/dashboard', dashboardRoutes);
 
 
 const app = express();
