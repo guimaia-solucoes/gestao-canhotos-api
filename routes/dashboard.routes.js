@@ -88,10 +88,8 @@ WITH periodo AS (
     (e.checkoutdh IS NOT NULL)                                 AS finalizada,
     (e.checkoutdh IS NULL AND e.dtinicial_entrega IS NOT NULL)         AS em_rota,
     (e.checkoutdh IS NULL AND e.checkindh IS NULL)             AS nao_iniciada,
-    (e.checkoutdh IS NULL
-      AND e.${COL_DATA}::date < CURRENT_DATE)                  AS atrasada,
-    (e.checkoutdh IS NOT NULL
-      AND e.checkoutdh::date <= e.${COL_DATA}::date)           AS no_prazo,
+    (e.checkoutdh IS NULL AND e.data_entrega < now())              AS atrasada,
+    (e.checkoutdh IS NOT NULL AND e.checkoutdh <= e.data_entrega)  AS no_prazo,
     (oc.achou IS NULL)                                         AS sem_ocorrencia
   FROM public.entregas e
   LEFT JOIN public.romaneios r
