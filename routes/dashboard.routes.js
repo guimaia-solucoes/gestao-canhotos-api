@@ -86,7 +86,7 @@ WITH periodo AS (
     r.motorista                                                AS nome_motorista,
     (SELECT PLACA FROM VEICULOS V WHERE V.CODVEICULO =  r.codveiculo ) AS veiculo,
     (e.checkoutdh IS NOT NULL)                                 AS finalizada,
-    (e.checkoutdh IS NULL AND e.checkindh IS NOT NULL)         AS em_rota,
+    (e.checkoutdh IS NULL AND e.dtinicial_entrega IS NOT NULL)         AS em_rota,
     (e.checkoutdh IS NULL AND e.checkindh IS NULL)             AS nao_iniciada,
     (e.checkoutdh IS NULL
       AND e.${COL_DATA}::date < CURRENT_DATE)                  AS atrasada,
