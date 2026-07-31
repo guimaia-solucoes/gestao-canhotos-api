@@ -2,7 +2,8 @@ const express = require("express");
 const multer = require("multer");
 const AdmZip = require("adm-zip");
 const { XMLParser } = require("fast-xml-parser");
-const pool = require("../db/pool"); // ajuste caminho se precisar
+const pool = require("../db/pool");
+const { authMiddleware } = require("../middleware/auth.middleware");
 
 const router = express.Router();
 
@@ -26,6 +27,43 @@ function toNumber(v) {
   if (v === null || v === undefined || v === "") return null;
   const n = Number(String(v).replace(",", "."));
   return Number.isFinite(n) ? n : null;
+}
+
+// ============================================================
+//  IDENTIDADE DO USUÁRIO LOGADO
+// ============================================================
+//
+//  Fonte da verdade é o token, nunca o corpo da requisição.
+//  Se o payload do JWT já traz codemp, usa direto; senão busca
+//  em usuarios pelo codusu — assim tokens antigos, emitidos antes
+//  de o codemp entrar no payload, continuam funcionando.
+
+function usuarioDoRequest(req) {
+  return req.usuario || req.user || req.auth || {};
+}
+
+async function resolverCodemp(req) {
+  const u = usuarioDoRequest(req);
+
+  const direto = u.codemp ?? u.codEmp ?? u.cod_emp;
+  if (direto !== undefined && direto !== null && direto !== "") {
+    return Number(direto);
+  }
+
+  const codusu = u.codusu ?? u.id ?? u.sub;
+  if (codusu === undefined || codusu === null) return null;
+
+  const { rows } = await pool.query(
+    "SELECT codemp FROM public.usuarios WHERE codusu = $1 LIMIT 1",
+    [codusu]
+  );
+  return rows[0]?.codemp ?? null;
+}
+
+function resolverCodusu(req) {
+  const u = usuarioDoRequest(req);
+  const codusu = u.codusu ?? u.id ?? u.sub;
+  return codusu === undefined || codusu === null ? null : Number(codusu);
 }
 
 function extrairItens(infNFe) {
@@ -59,105 +97,115 @@ function extrairItens(infNFe) {
   });
 }
 
-router.post("/nfe/importar-zip", upload.single("arquivo"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ ok: false, msg: "Arquivo ZIP não enviado." });
+// ============================================================
+//  IMPORTAÇÃO DE ZIP COM XMLs
+// ============================================================
 
-  const zip = new AdmZip(req.file.buffer);
-  const entries = zip.getEntries();
+router.post(
+  "/nfe/importar-zip",
+  authMiddleware,
+  upload.single("arquivo"),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ ok: false, msg: "Arquivo ZIP não enviado." });
+    }
 
-  const resultado = {
-    totalArquivos: entries.length,
-    totalXml: 0,
-    importados: 0,
-    duplicados: 0,
-    erros: [],
-  };
-
-  for (const e of entries) {
-    if (e.isDirectory) continue;
-    if (!e.entryName.toLowerCase().endsWith(".xml")) continue;
-
-    resultado.totalXml++;
-
-    try {
-      const xml = e.getData().toString("utf-8");
-      const obj = parser.parse(xml);
-
-      const nfeRoot = obj?.nfeProc?.NFe ?? obj?.NFe;
-      const infNFe = nfeRoot?.infNFe;
-      if (!infNFe) throw new Error("Estrutura XML inválida (infNFe não encontrado).");
-
-      const id = infNFe["@_Id"] || infNFe["Id"];
-      const chave = (id || "").replace(/^NFe/, "");
-      if (chave.length !== 44) throw new Error("Chave NFe inválida ou ausente.");
-
-      const ide = infNFe?.ide;
-      const emit = infNFe?.emit;
-      const dest = infNFe?.dest;
-      const total = infNFe?.total?.ICMSTot;
-
-      const dhEmi = ide?.dhEmi || ide?.dEmi || null;
-      const nNF = ide?.nNF || null;
-      const serie = ide?.serie || null;
-
-      const emitCnpj = emit?.CNPJ || null;
-      const emitNome = emit?.xNome || null;
-
-      const destCnpjCpf = dest?.CNPJ || dest?.CPF || null;
-      const destNome = dest?.xNome || null;
-
-      const vNF = total?.vNF || null;
-
-      const itens = extrairItens(infNFe);
-
-      const enderDest = dest?.enderDest || {};
-
-	  const registro = {
-		  numnota: nNF ? String(nNF) : null,
-		  cgccpf: destCnpjCpf,
-		  endereco: enderDest?.xLgr || null,
-		  numend: enderDest?.nro || null,
-		  cidade: enderDest?.xMun || null,
-		  estado: enderDest?.UF || null,
-		  chavenfe: chave,
-		  vlrnota: vNF ? toNumber(vNF) : null,
-		  nomeparc: destNome || null,
-		  razaosocial: destNome || null,
-		  nomebairro: enderDest?.xBairro || null,
-		  telefone: dest?.fone || null,
-		  xml_nfe: xml || null,
-	};
-
-      const jaExiste = await existeChaveNoBanco(chave);
-      if (jaExiste) {
-        resultado.duplicados++;
-        continue;
-      }
-
-      const idNfe = await inserirEntregaNoBanco(registro);
-
-      //if (itens.length > 0) {
-     //   await inserirItensEntregaNoBanco(idNfe, itens);
-     // }
-
-      resultado.importados++;
-    } catch (err) {
-      resultado.erros.push({
-        arquivo: e.entryName,
-        erro: err?.message || String(err),
+    const codemp = await resolverCodemp(req);
+    if (!codemp) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Não foi possível identificar a empresa do usuário logado.",
       });
     }
+
+    const codusu = resolverCodusu(req);
+
+    const zip = new AdmZip(req.file.buffer);
+    const entries = zip.getEntries();
+
+    const resultado = {
+      totalArquivos: entries.length,
+      totalXml: 0,
+      importados: 0,
+      duplicados: 0,
+      erros: [],
+    };
+
+    for (const e of entries) {
+      if (e.isDirectory) continue;
+      if (!e.entryName.toLowerCase().endsWith(".xml")) continue;
+
+      resultado.totalXml++;
+
+      try {
+        const xml = e.getData().toString("utf-8");
+        const obj = parser.parse(xml);
+
+        const nfeRoot = obj?.nfeProc?.NFe ?? obj?.NFe;
+        const infNFe = nfeRoot?.infNFe;
+        if (!infNFe) throw new Error("Estrutura XML inválida (infNFe não encontrado).");
+
+        const id = infNFe["@_Id"] || infNFe["Id"];
+        const chave = (id || "").replace(/^NFe/, "");
+        if (chave.length !== 44) throw new Error("Chave NFe inválida ou ausente.");
+
+        const ide = infNFe?.ide;
+        const dest = infNFe?.dest;
+        const total = infNFe?.total?.ICMSTot;
+
+        const nNF = ide?.nNF || null;
+        const destCnpjCpf = dest?.CNPJ || dest?.CPF || null;
+        const destNome = dest?.xNome || null;
+        const vNF = total?.vNF || null;
+        const enderDest = dest?.enderDest || {};
+
+        const registro = {
+          codemp,
+          codusuinclusao: codusu,
+          numnota: nNF ? String(nNF) : null,
+          cgccpf: destCnpjCpf,
+          endereco: enderDest?.xLgr || null,
+          numend: enderDest?.nro || null,
+          cidade: enderDest?.xMun || null,
+          estado: enderDest?.UF || null,
+          chavenfe: chave,
+          vlrnota: vNF ? toNumber(vNF) : null,
+          nomeparc: destNome || null,
+          razaosocial: destNome || null,
+          nomebairro: enderDest?.xBairro || null,
+          telefone: dest?.fone || null,
+          xml_nfe: xml || null,
+        };
+
+        const jaExiste = await existeChaveNoBanco(chave, codemp);
+        if (jaExiste) {
+          resultado.duplicados++;
+          continue;
+        }
+
+        await inserirEntregaNoBanco(registro);
+        resultado.importados++;
+      } catch (err) {
+        resultado.erros.push({
+          arquivo: e.entryName,
+          erro: err?.message || String(err),
+        });
+      }
+    }
+
+    res.json({ ok: true, ...resultado });
   }
+);
 
-  res.json({ ok: true, ...resultado });
-});
+// ===== FUNÇÕES DE BANCO =====
 
-// ===== FUNÇÕES DE BANCO (podem ficar aqui sim) =====
-
-async function existeChaveNoBanco(chave) {
+// Duplicidade é checada DENTRO da empresa. A chave da NFe é única no
+// país, mas empresas diferentes na mesma base precisam poder importar
+// o mesmo XML sem uma bloquear a outra.
+async function existeChaveNoBanco(chave, codemp) {
   const { rowCount } = await pool.query(
-    "SELECT 1 FROM public.entregas WHERE chavenfe = $1 LIMIT 1",
-    [chave]
+    "SELECT 1 FROM public.entregas WHERE chavenfe = $1 AND codemp = $2 LIMIT 1",
+    [chave, codemp]
   );
   return rowCount > 0;
 }
@@ -165,14 +213,17 @@ async function existeChaveNoBanco(chave) {
 async function inserirEntregaNoBanco(registro) {
   const sql = `
     INSERT INTO public.entregas (
+      codemp, codusuinclusao,
       numnota, cgccpf, endereco, numend, cidade, estado,
       chavenfe, vlrnota, nomeparc, razaosocial, nomebairro, telefone, xml_nfe
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, $13)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
     RETURNING id
   `;
 
   const params = [
+    registro.codemp,
+    registro.codusuinclusao,
     registro.numnota,
     registro.cgccpf,
     registro.endereco,
@@ -185,7 +236,7 @@ async function inserirEntregaNoBanco(registro) {
     registro.razaosocial,
     registro.nomebairro,
     registro.telefone,
-	registro.xml_nfe,
+    registro.xml_nfe,
   ];
 
   const { rows } = await pool.query(sql, params);
@@ -205,26 +256,9 @@ async function inserirItensEntregaNoBanco(idEntrega, itens) {
   const placeholders = itens.map((it, i) => {
     const base = i * cols.length;
     values.push(
-      idEntrega,
-      it.nItem,
-      it.cProd,
-      it.xProd,
-      it.NCM,
-      it.CEST,
-      it.CFOP,
-      it.uCom,
-      it.qCom,
-      it.vUnCom,
-      it.vProd,
-      it.cEAN,
-      it.cEANTrib,
-      it.uTrib,
-      it.qTrib,
-      it.vUnTrib,
-      it.vFrete,
-      it.vDesc,
-      it.vOutro,
-      it.indTot
+      idEntrega, it.nItem, it.cProd, it.xProd, it.NCM, it.CEST, it.CFOP,
+      it.uCom, it.qCom, it.vUnCom, it.vProd, it.cEAN, it.cEANTrib, it.uTrib,
+      it.qTrib, it.vUnTrib, it.vFrete, it.vDesc, it.vOutro, it.indTot
     );
 
     const p = Array.from({ length: cols.length }, (_, k) => `$${base + k + 1}`);
