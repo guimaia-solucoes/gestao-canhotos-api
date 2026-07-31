@@ -8,9 +8,6 @@ const { buscarLatLongComDelay } = require('./services/geocoding.service');
 const authRoutes = require('./routes/auth.routes'); 
 const { authMiddleware } = require('./middleware/auth.middleware');
 const dashboardRoutes = require('./routes/dashboard.routes');
-app.use('/api/dashboard', dashboardRoutes);
-
-
 const app = express();
 
 const { execSync } = require('child_process');
@@ -35,6 +32,7 @@ app.use(express.json());
 // registra rota /api/nfe/importar-zip
 app.use('/api/auth', authRoutes);  
 app.use("/api", nfeImportRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 danfeService.registerRoutes(app); 
 
 const PORT = process.env.PORT || 3000;
