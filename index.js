@@ -352,35 +352,57 @@ app.post('/entregas/importar-csv', authMiddleware, async (req, res) => {
 app.put('/entregas/:id', authMiddleware, async (req, res) => {
   try {
     const id = Number(req.params.id);
-
     console.log('[PUT /entregas] body recebido:', JSON.stringify(req.body));
 
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ error: 'Id. da entrega é inválida' });
     }
 
-    const { ordemcarga, seqcarga } = req.body;
+    const { ordemcarga, seqcarga, data_entrega } = req.body;
 
-    // ✅ Monta update dinâmico: atualiza só o que veio no body
     const fields = [];
     const values = [];
     let idx = 1;
 
-    if (ordemcarga !== undefined) { fields.push(`ordemcarga = $${idx++}`); values.push(ordemcarga); }
-	if (seqcarga !== undefined) { fields.push(`seqcarga = $${idx++}`); values.push(seqcarga); }
- 
+    if (ordemcarga !== undefined) {
+      fields.push(`ordemcarga = $${idx++}`);
+      values.push(ordemcarga);
+
+      // Herda a data prevista do romaneio — só quando o body NÃO trouxe
+      // data_entrega explícita (informar a data na mão deve vencer a herança).
+      if (data_entrega === undefined) {
+        fields.push(`data_entrega = (SELECT r.data_entregasaida
+             FROM public.romaneios r
+            WHERE r.ocromaneio = $${idx}),
+          data_entrega
+        `);
+        values.push(ordemcarga);
+        idx++;
+      }
+    }
+
+    if (seqcarga !== undefined) {
+      fields.push(`seqcarga = $${idx++}`);
+      values.push(seqcarga);
+    }
+
+    if (data_entrega !== undefined) {
+      fields.push(`data_entrega = $${idx++}`);
+      values.push(data_entrega);
+    }
+
     if (fields.length === 0) {
       return res.status(400).json({ error: 'Nenhum campo para atualizar' });
     }
 
-    // codusu sempre por último
+    // id sempre por último
     values.push(id);
 
     const sql = `
       UPDATE public.entregas
       SET ${fields.join(', ')}
       WHERE id = $${idx}
-      RETURNING id
+      RETURNING id, ordemcarga, seqcarga, data_entrega
     `;
 
     const result = await pool.query(sql, values);
@@ -391,19 +413,19 @@ app.put('/entregas/:id', authMiddleware, async (req, res) => {
 
     return res.json(result.rows[0]);
   } catch (error) {
-  console.error('Erro ao atualizar entrega:', {
-    message: error.message,
-    code: error.code,
-    detail: error.detail,
-    constraint: error.constraint,
-    table: error.table,
-    column: error.column,
-  });
-  return res.status(500).json({ 
-    error: 'Erro interno ao atualizar entrega',
-    detail: error.message  // ✅ retorna o detalhe no response
-  });
- }
+    console.error('Erro ao atualizar entrega:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      table: error.table,
+      column: error.column,
+    });
+    return res.status(500).json({
+      error: 'Erro interno ao atualizar entrega',
+      detail: error.message
+    });
+  }
 });
 
 
@@ -787,8 +809,16 @@ app.put('/romaneios/:ordemcarga', authMiddleware, async (req, res) => {
       WHERE ocromaneio = $${idx}
       RETURNING ocromaneio, data_entregasaida, motorista, duracaoest, kmest, status, qtdentregas, qtdfinalizadas, obs, coordenadas, codveiculo, codmotorista
     `;
-
+	
     const result = await pool.query(sql, values);
+	
+	//testar aqui, coloquei 31/07/2026 as 13:39
+	if (data_entregasaida !== undefined) {
+    await pool.query(
+    `UPDATE public.entregas SET data_entrega = $1 WHERE ordemcarga = $2`,
+    [data_entregasaida, ordemcarga]
+    );
+    }
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Ordem de carga não encontrada' });
