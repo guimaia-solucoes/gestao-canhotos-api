@@ -370,12 +370,10 @@ app.put('/entregas/:id', authMiddleware, async (req, res) => {
 
       // Herda a data prevista do romaneio — só quando o body NÃO trouxe
       // data_entrega explícita (informar a data na mão deve vencer a herança).
-      if (data_entrega === undefined) {
+       if (data_entrega === undefined) {
         fields.push(`data_entrega = (SELECT r.data_entregasaida
              FROM public.romaneios r
-            WHERE r.ocromaneio = $${idx}),
-          data_entrega
-        `);
+            WHERE r.ocromaneio = $${idx})`);
         values.push(ordemcarga);
         idx++;
       }
