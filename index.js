@@ -530,7 +530,7 @@ app.post('/romaneios', authMiddleware, async (req, res) => {
 app.get('/romaneios', authMiddleware, async (req, res) => {
   try {
     const sql = `
-      SELECT ocromaneio , data_criacao , TO_CHAR(data_entregasaida, 'DD/MM/YYYY') as data_entregasaida , motorista , duracaoest , kmest , status , qtdentregas , qtdfinalizadas , obs 
+      SELECT ocromaneio , data_criacao , data_entregasaida , motorista , duracaoest , kmest , status , qtdentregas , qtdfinalizadas , obs 
 	  FROM public.romaneios
       order by ocromaneio desc	   
     `;
