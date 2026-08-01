@@ -8,6 +8,8 @@ const { buscarLatLongComDelay } = require('./services/geocoding.service');
 const authRoutes = require('./routes/auth.routes'); 
 const { authMiddleware } = require('./middleware/auth.middleware');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const comprovanteRoutes = require('./routes/comprovante.routes');
+
 const app = express();
 
 const { execSync } = require('child_process');
@@ -34,6 +36,7 @@ app.use('/api/auth', authRoutes);
 app.use("/api", nfeImportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 danfeService.registerRoutes(app); 
+app.use('/api/comprovante', comprovanteRoutes);
 
 const PORT = process.env.PORT || 3000;
 
