@@ -7,6 +7,7 @@ const danfeService = require('./danfe.service');
 const { buscarLatLongComDelay } = require('./services/geocoding.service');
 const authRoutes = require('./routes/auth.routes'); 
 const { authMiddleware } = require('./middleware/auth.middleware');
+const { escopoMiddleware, empresasFiltradas } = require('./middleware/escopo.middleware');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const comprovanteRoutes = require('./routes/comprovante.routes');
 
@@ -60,7 +61,7 @@ app.get('/health', async (req, res) => {
 //CADASTRO USUÁRIOS 
 //( POST, PUT, GET )
 //Cadastrando usuários
-app.post('/usuarios', authMiddleware, async (req, res) => {
+app.post('/usuarios', authMiddleware, escopoMiddleware, async (req, res) => {
   try {
     const { codemp, nomeusu, senha, email, ativo, nomecomp } = req.body;
 
@@ -70,6 +71,12 @@ app.post('/usuarios', authMiddleware, async (req, res) => {
         error: 'codemp, nomeusu e senha são obrigatórios'
       });
     }
+	
+	const codemp = Number(req.body.codemp);
+
+	if (!req.escopo.empresas.includes(codemp)) {
+    return res.status(403).json({ error: 'Empresa não permitida.' });
+	}
 
     const sql = `
       INSERT INTO usuarios (codemp, nomeusu, senha, email, ativo, nomecomp)
@@ -96,16 +103,21 @@ app.post('/usuarios', authMiddleware, async (req, res) => {
 });
 
 //Consultar usuários
-app.get('/usuarios', authMiddleware, async (req, res) => {
+app.get('/usuarios', authMiddleware, escopoMiddleware, async (req, res) => {
   try {
+	  
+	const empresas = empresasFiltradas(req);
+	  
     const sql = `
       SELECT codusu, codemp, nomeusu, email, ativo, nomecomp, dhinclusao
       FROM public.usuarios
 	  WHERE dhexclusao IS NULL
+	  AND e.codemp = ANY($1::int[])
       ORDER BY codusu 
     `;
 
-    const result = await pool.query(sql);
+    const result = await pool.query(sql, [empresas]);
+    
     return res.json(result.rows);
   } catch (error) {
     console.error('Erro ao listar usuários:', error);
