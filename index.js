@@ -15,6 +15,7 @@ const {
 } = require('./middleware/escopo.middleware');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const comprovanteRoutes = require('./routes/comprovante.routes');
+const rastreioRoutes = require('./routes/rastreio.routes');
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.use("/api", nfeImportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 danfeService.registerRoutes(app);
 app.use('/api/comprovante', comprovanteRoutes);
+app.use('/api/rastreio', rastreioRoutes);
 
 const PORT = process.env.PORT || 3000;
 
