@@ -360,7 +360,7 @@ app.get('/entregas', authMiddleware, escopoMiddleware, async (req, res) => {
              e.ad_apptipdocrecebedor, e.assinaturalatitude, e.assinaturalongitude,
              COALESCE(e.seqcarga, 0) AS seqcarga,
              e.tipodoc, e.codmotorista, e.status, e.data_entrega,
-             emp.nomefantasia AS empresa_nome
+             emp.nomefantasia AS empresa_nome, e.token_rastreio 
         FROM public.entregas e
         JOIN public.empresas emp ON emp.codemp = e.codemp
        WHERE e.codemp = ANY($1::int[])
