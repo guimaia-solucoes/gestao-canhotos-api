@@ -29,6 +29,8 @@ CINZA_BORDA = colors.HexColor('#9A9A9A')
 CINZA_TEXTO = colors.HexColor('#333333')
 CINZA_CLARO = colors.HexColor('#F2F2F2')
 CINZA_LINHA = colors.HexColor('#EDEDED')
+VERDE = colors.HexColor('#15803D')
+VERDE_FUNDO = colors.HexColor('#F0FAF3')
 
 LARGURA_UTIL = A4[0] - 30 * mm
 
@@ -50,6 +52,8 @@ S_CEL_B = ParagraphStyle('celb', fontName='Helvetica-Bold', fontSize=7.5,
                          leading=9)
 S_ENDER = ParagraphStyle('ender', fontName='Helvetica', fontSize=7,
                          leading=8.5, textColor=CINZA_TEXTO)
+S_RECEB = ParagraphStyle('receb', fontName='Helvetica', fontSize=6.8,
+                         leading=8.5, textColor=VERDE)
 S_VAZIO = ParagraphStyle('vazio', fontName='Helvetica-Oblique', fontSize=8,
                          leading=11, alignment=1, textColor=CINZA_BORDA)
 S_ASSIN = ParagraphStyle('assin', fontName='Helvetica-Bold', fontSize=8,
@@ -105,8 +109,16 @@ def cep_formatado(v):
     return str(v or '')
 
 
+def escapar(texto):
+    """Paragraph interpreta tags: & < > precisam virar entidade."""
+    return (str(texto or '')
+            .replace('&', '&amp;')
+            .replace('<', '&lt;')
+            .replace('>', '&gt;'))
+
+
 def P(texto, estilo=S_CEL):
-    return Paragraph(str(texto if texto is not None else ''), estilo)
+    return Paragraph(escapar(texto), estilo)
 
 
 def imagem_de(b64, largura, altura):
@@ -148,13 +160,14 @@ def cabecalho(emit, rom):
     logo = imagem_de(emit.get('logo_base64'), 30 * mm, 20 * mm)
 
     centro = [
-        Paragraph(emit.get('razaosocial') or emit.get('nomefantasia') or '', S_TITULO),
+        Paragraph(escapar(emit.get('razaosocial')
+                          or emit.get('nomefantasia') or ''), S_TITULO),
         Spacer(1, 2),
         Paragraph(
             f"CNPJ: {doc_formatado(emit.get('cnpj'))}"
-            + (f" | {emit['email']}" if emit.get('email') else ''),
+            + (f" | {escapar(emit['email'])}" if emit.get('email') else ''),
             S_SUB),
-        Paragraph(emit.get('endereco') or '', S_SUB),
+        Paragraph(escapar(emit.get('endereco') or ''), S_SUB),
     ]
 
     direita = Table([
@@ -186,7 +199,8 @@ def cabecalho(emit, rom):
 def campo(rotulo, valor):
     """Célula com rótulo pequeno acima e valor abaixo."""
     return Table(
-        [[Paragraph(rotulo, S_ROTULO)], [Paragraph(str(valor or '—'), S_VALOR)]],
+        [[Paragraph(rotulo, S_ROTULO)],
+         [Paragraph(escapar(valor if valor not in (None, '') else '—'), S_VALOR)]],
         style=TableStyle([
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
@@ -224,6 +238,32 @@ def bloco_carga(rom, totais):
     return t
 
 
+def _celula_entregue(e):
+    """
+    Entrega concluída: data da assinatura, quem recebeu e o documento.
+    Ainda pendente: célula vazia, que com a borda vira o quadrado de
+    conferência usado na doca durante o carregamento.
+
+    O gatilho é `assinadodh`, não `checkoutdh`: são momentos
+    diferentes, e o dado exibido aqui é o da assinatura.
+    """
+    if not e.get('assinadodh'):
+        return P('')
+
+    linhas = [f"<b>{dt(e['assinadodh'], '%d/%m/%y %H:%M')}</b>"]
+
+    recebedor = (e.get('recebedor') or '').strip()
+    if recebedor:
+        linhas.append(escapar(recebedor))
+
+    doc = (e.get('recebedor_doc') or '').strip()
+    tipo = (e.get('recebedor_tipodoc') or '').strip()
+    if doc:
+        linhas.append(escapar(f'{tipo} {doc}'.strip()))
+
+    return Paragraph('<br/>'.join(linhas), S_RECEB)
+
+
 def tabela_entregas(entregas):
     """
     Duas linhas por entrega: a primeira com sequência, nota e
@@ -242,11 +282,12 @@ def tabela_entregas(entregas):
                          ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
                      ]))
 
-    larguras = [w * 0.06, w * 0.10, w * 0.54, w * 0.14, w * 0.16]
+    larguras = [w * 0.06, w * 0.09, w * 0.44, w * 0.11, w * 0.30]
 
     dados = [[
-        P('Seq.', S_CEL_B), P('Nota', S_CEL_B), P('Destinatário / Endereço', S_CEL_B),
-        P('Valor', S_CEL_B), P('Conferido', S_CEL_B),
+        P('Seq.', S_CEL_B), P('Nota', S_CEL_B),
+        P('Destinatário / Endereço', S_CEL_B),
+        P('Valor', S_CEL_B), P('Entregue', S_CEL_B),
     ]]
 
     estilo = [
@@ -262,13 +303,15 @@ def tabela_entregas(entregas):
 
     linha = 1
     for e in entregas:
+        entregue = bool(e.get('assinadodh'))
+
         # Linha principal
         dados.append([
             P(e.get('seqcarga')),
             P(e.get('numnota')),
             P(e.get('razaosocial'), S_CEL_B),
             P(moeda(e.get('vlrnota'))),
-            P(''),   # quadrado para o motorista marcar
+            _celula_entregue(e),
         ])
 
         # Linha do endereço
@@ -294,8 +337,14 @@ def tabela_entregas(entregas):
         estilo.append(('SPAN', (4, linha), (4, linha + 1)))
         estilo.append(('LINEBELOW', (0, linha + 1), (-1, linha + 1),
                        0.5, CINZA_LINHA))
-        # Caixa de conferência
+
+        # A coluna "Entregue" sempre tem borda: com dados vira o
+        # comprovante, vazia vira o quadrado de conferência.
         estilo.append(('BOX', (4, linha), (4, linha + 1), 0.5, CINZA_BORDA))
+        if entregue:
+            estilo.append(('BACKGROUND', (4, linha), (4, linha + 1), VERDE_FUNDO))
+            estilo.append(('VALIGN', (4, linha), (4, linha + 1), 'MIDDLE'))
+            estilo.append(('LEFTPADDING', (4, linha), (4, linha + 1), 6))
 
         linha += 2
 
@@ -306,14 +355,22 @@ def tabela_entregas(entregas):
 
 def bloco_totais(totais):
     w = LARGURA_UTIL
+
+    total = totais.get('entregas', 0) or 0
+    entregues = totais.get('entregues', 0) or 0
+    pendentes = total - entregues
+
     t = Table([[
-        P(f"Total de entregas: {totais.get('entregas', 0)}", S_CEL_B),
+        P(f'Entregas: {total}', S_CEL_B),
+        P(f'Entregues: {entregues}', S_CEL_B),
+        P(f'Pendentes: {pendentes}', S_CEL_B),
         P(f"Valor total: R$ {moeda(totais.get('valor'))}", S_CEL_B),
-    ]], colWidths=[w * 0.5, w * 0.5])
+    ]], colWidths=[w * 0.20, w * 0.20, w * 0.20, w * 0.40])
     t.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 0.5, CINZA_BORDA),
         ('BACKGROUND', (0, 0), (-1, -1), CINZA_CLARO),
-        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('ALIGN', (3, 0), (3, 0), 'RIGHT'),
+        ('TEXTCOLOR', (1, 0), (1, 0), VERDE),
         ('TOPPADDING', (0, 0), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
@@ -347,7 +404,7 @@ def bloco_assinaturas(rom):
         ]))
         itens = [Spacer(1, 16 * mm), linha, Spacer(1, 3)]
         if nome and nome != '—':
-            itens.append(Paragraph(str(nome).upper(), S_ASSIN))
+            itens.append(Paragraph(escapar(str(nome).upper()), S_ASSIN))
             itens.append(Spacer(1, 2))
         itens.append(Paragraph(titulo, S_ASSIN))
         return itens

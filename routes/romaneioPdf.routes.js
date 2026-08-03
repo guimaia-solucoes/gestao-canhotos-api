@@ -49,7 +49,6 @@ router.get('/:ordemcarga', authMiddleware, escopoMiddleware, async (req, res) =>
               emp.numero AS emp_numero, emp.bairro AS emp_bairro,
               emp.cidade AS emp_cidade, emp.estado AS emp_estado,
               emp.cep AS emp_cep,
-              (emp.logo IS NOT NULL)                         AS tem_logo,
               CASE WHEN emp.logo IS NOT NULL
                    THEN encode(emp.logo, 'base64') END       AS logo_base64
          FROM public.romaneios r
@@ -84,7 +83,11 @@ router.get('/:ordemcarga', authMiddleware, escopoMiddleware, async (req, res) =>
               COALESCE(e.estado, '')     AS estado,
               NULL                       AS cep,
               e.vlrnota,
-              e.checkoutdh
+              e.checkoutdh,
+              e.assinadodh,
+              COALESCE(e.ad_apprecebedor, '')       AS recebedor,
+              COALESCE(e.ad_appdocrecebedor, '')    AS recebedor_doc,
+              COALESCE(e.ad_apptipdocrecebedor, '') AS recebedor_tipodoc
          FROM public.entregas e
         WHERE e.ordemcarga = $1
           AND e.codemp = $2
@@ -95,6 +98,8 @@ router.get('/:ordemcarga', authMiddleware, escopoMiddleware, async (req, res) =>
     const totalValor = entregas.reduce(
       (soma, e) => soma + Number(e.vlrnota || 0), 0
     );
+
+    const totalEntregues = entregas.filter((e) => e.assinadodh).length;
 
     const payload = {
       emitente: {
@@ -136,10 +141,15 @@ router.get('/:ordemcarga', authMiddleware, escopoMiddleware, async (req, res) =>
         cep: e.cep,
         vlrnota: e.vlrnota,
         finalizada: !!e.checkoutdh,
+        assinadodh: e.assinadodh,
+        recebedor: e.recebedor,
+        recebedor_doc: e.recebedor_doc,
+        recebedor_tipodoc: e.recebedor_tipodoc,
       })),
 
       totais: {
         entregas: entregas.length,
+        entregues: totalEntregues,
         valor: totalValor,
       },
     };
