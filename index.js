@@ -16,6 +16,7 @@ const {
 const dashboardRoutes = require('./routes/dashboard.routes');
 const comprovanteRoutes = require('./routes/comprovante.routes');
 const rastreioRoutes = require('./routes/rastreio.routes');
+const logoRoutes = require('./routes/logo.routes');
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/api/dashboard', dashboardRoutes);
 danfeService.registerRoutes(app);
 app.use('/api/comprovante', comprovanteRoutes);
 app.use('/api/rastreio', rastreioRoutes);
+app.use('/api/empresas', logoRoutes);
 
 const PORT = process.env.PORT || 3000;
 
