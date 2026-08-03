@@ -181,4 +181,184 @@ router.get('/sincronizar', async (req, res) => {
   }
 });
 
+
+// -- Envio de informações
+router.post('/enviar', async (req, res) => {
+  const codmotorista = Number(req.usuario.codmotorista);
+  const codconta = Number(req.usuario.codconta);
+
+  const entregas = Array.isArray(req.body.entregas) ? req.body.entregas : [];
+  const ocorrencias = Array.isArray(req.body.ocorrencias)
+    ? req.body.ocorrencias : [];
+
+  const resultado = {
+    entregas: { ok: [], erro: [] },
+    ocorrencias: { ok: [], erro: [] },
+  };
+
+  const client = await pool.connect();
+  try {
+    // ── Entregas ────────────────────────────────────────────
+    //
+    // Cada uma em sua própria transação, e não o lote inteiro
+    // numa só: se a entrega 3 falhar por dado inválido, as
+    // outras 20 já enviadas não podem voltar atrás — o motorista
+    // teria de refazer tudo.
+    for (const e of entregas) {
+      const id = Number(e.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        resultado.entregas.erro.push({ id: e.id, motivo: 'id inválido' });
+        continue;
+      }
+
+      try {
+        await client.query('BEGIN');
+
+        // Monta update dinâmico: o app manda só o que mudou.
+        const campos = [];
+        const valores = [];
+        let i = 1;
+
+        const permitidos = [
+          'dtinicial_entrega', 'checkindh', 'checkinlatitude',
+          'checkinlongitude', 'assinadodh', 'assinado', 'assinatura',
+          'ad_apprecebedor', 'ad_appdocrecebedor', 'ad_apptipdocrecebedor',
+          'assinaturalatitude', 'assinaturalongitude', 'checkoutdh',
+          'latitude', 'longitude',
+        ];
+
+        for (const campo of permitidos) {
+          if (e[campo] !== undefined) {
+            campos.push(`${campo} = $${i++}`);
+            valores.push(e[campo] === '' ? null : e[campo]);
+          }
+        }
+
+        if (campos.length === 0) {
+          await client.query('ROLLBACK');
+          resultado.entregas.erro.push({ id, motivo: 'nada a atualizar' });
+          continue;
+        }
+
+        valores.push(id);
+        valores.push(codmotorista);
+
+        // O JOIN com romaneios é a trava de segurança: o
+        // motorista só altera entrega de carga que é dele.
+        const { rowCount } = await client.query(
+          `UPDATE public.entregas e
+              SET ${campos.join(', ')}
+            WHERE e.id = $${i}
+              AND EXISTS (
+                SELECT 1 FROM public.romaneios r
+                 WHERE r.ocromaneio = e.ordemcarga
+                   AND r.codemp     = e.codemp
+                   AND r.codmotorista = $${i + 1}
+              )`,
+          valores
+        );
+
+        if (rowCount === 0) {
+          await client.query('ROLLBACK');
+          resultado.entregas.erro.push({
+            id, motivo: 'entrega não encontrada ou não pertence ao motorista',
+          });
+          continue;
+        }
+
+        await client.query('COMMIT');
+        resultado.entregas.ok.push(id);
+      } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('[app/enviar] entrega', id, err.message);
+        resultado.entregas.erro.push({ id, motivo: err.message });
+      }
+    }
+
+    // ── Ocorrências ─────────────────────────────────────────
+    for (const o of ocorrencias) {
+      const token = String(o.token_local || '').trim();
+      const idEntrega = Number(o.id_entrega);
+
+      if (!token) {
+        resultado.ocorrencias.erro.push({
+          token_local: o.token_local, motivo: 'token_local ausente',
+        });
+        continue;
+      }
+
+      try {
+        await client.query('BEGIN');
+
+        // Confere o vínculo antes de inserir.
+        const { rows: dono } = await client.query(
+          `SELECT e.id, e.codemp, e.numnota, e.ordemcarga
+             FROM public.entregas e
+             JOIN public.romaneios r
+                  ON r.ocromaneio = e.ordemcarga
+                 AND r.codemp     = e.codemp
+            WHERE e.id = $1
+              AND r.codmotorista = $2
+            LIMIT 1`,
+          [idEntrega, codmotorista]
+        );
+
+        if (dono.length === 0) {
+          await client.query('ROLLBACK');
+          resultado.ocorrencias.erro.push({
+            token_local: token, motivo: 'entrega não pertence ao motorista',
+          });
+          continue;
+        }
+
+        const ent = dono[0];
+
+        // ON CONFLICT DO NOTHING no token: reenviar depois de um
+        // timeout não cria ocorrência duplicada. O `seq` fica a
+        // cargo da trigger que já existe na tabela.
+        await client.query(
+          `INSERT INTO public.entregas_ocorrencias
+             (id, codemp, codusuinc, dhocor, descrocor, codocor,
+              numnota, ordemcarga, token_local)
+           VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (token_local) DO NOTHING`,
+          [
+            ent.id,
+            ent.codemp,
+            o.dhocor || new Date().toISOString(),
+            o.descrocor || null,
+            Number(o.codocor) || null,
+            ent.numnota,
+            ent.ordemcarga,
+            token,
+          ]
+        );
+
+        await client.query('COMMIT');
+        resultado.ocorrencias.ok.push(token);
+      } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('[app/enviar] ocorrência', token, err.message);
+        resultado.ocorrencias.erro.push({
+          token_local: token, motivo: err.message,
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      recebido_em: new Date().toISOString(),
+      ...resultado,
+    });
+  } catch (err) {
+    console.error('[app/enviar]', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao receber os dados.',
+    });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
