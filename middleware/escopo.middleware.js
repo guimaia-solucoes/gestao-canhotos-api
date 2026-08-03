@@ -26,6 +26,13 @@ async function escopoMiddleware(req, res, next) {
       message: 'Sessão inválida. Entre novamente.',
     });
   }
+  
+  if (req.usuario?.tipo === 'MOTORISTA') {
+    return res.status(403).json({
+      success: false,
+      message: 'Este acesso é exclusivo do painel de gestão.',
+    });
+  }
 
   try {
     const { rows } = await pool.query(

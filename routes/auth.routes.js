@@ -115,6 +115,110 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/auth/login-motorista
+//
+// Login do app. Identidade separada da web: outra tabela, outro
+// identificador e outro conjunto de permissões.
+// ─────────────────────────────────────────────────────────────
+router.post('/login-motorista', async (req, res) => {
+  const { cpf, senha } = req.body;
+
+  if (!cpf || !senha) {
+    return res.status(400).json({
+      success: false,
+      message: 'CPF e senha são obrigatórios.',
+    });
+  }
+
+  // Normaliza: o app pode mandar com máscara.
+  const cpfLimpo = String(cpf).replace(/\D/g, '');
+
+  if (cpfLimpo.length !== 11) {
+    return res.status(400).json({
+      success: false,
+      message: 'CPF inválido. Informe inclusive zeros a esquerda.',
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT m.codmotorista, m.codconta, m.codemp,
+              m.nomeusu, m.nomecomp, m.email, m.telefone,
+              m.senha, m.ativo,
+              c.nome AS conta_nome
+         FROM public.motoristas m
+         JOIN public.contas c ON c.codconta = m.codconta
+        WHERE m.cpf = $1
+          AND m.dhexclusao IS NULL
+        LIMIT 1`,
+      [cpfLimpo]
+    );
+
+    // Mensagem genérica: não revela se o CPF existe.
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'CPF ou senha inválidos.',
+      });
+    }
+
+    const m = result.rows[0];
+
+    if (senha !== m.senha) {
+      return res.status(401).json({
+        success: false,
+        message: 'CPF ou senha inválidos.',
+      });
+    }
+
+    const ativo = ['s', 'sim', 'true', '1', 'ativo']
+      .includes((m.ativo || '').toLowerCase());
+
+    if (!ativo) {
+      return res.status(403).json({
+        success: false,
+        code: 'MOTORISTA_INATIVO',
+        message: 'Cadastro inativo. Procure o responsável pela sua empresa.',
+      });
+    }
+
+    // O `tipo` é o que impede este token de ser aceito nas rotas
+    // da web: sem ele, codmotorista seria lido como codusu.
+    const token = jwt.sign(
+      {
+        tipo: 'MOTORISTA',
+        codmotorista: m.codmotorista,
+        codconta: m.codconta,
+        codemp: m.codemp,
+      },
+      JWT_SECRET,
+      { expiresIn: '30d' } // app fica logado; a web usa 8h
+    );
+
+    return res.status(200).json({
+      success: true,
+      token,
+      motorista: {
+        codmotorista: m.codmotorista,
+        nome: m.nomecomp || m.nomeusu,
+        email: m.email,
+        telefone: m.telefone,
+        conta: m.conta_nome,
+      },
+    });
+  } catch (err) {
+    console.error('[AUTH] Erro no login do motorista:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno ao processar o login.',
+    });
+  }
+});
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/auth/me
 //
