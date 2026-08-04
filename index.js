@@ -19,7 +19,7 @@ const rastreioRoutes = require('./routes/rastreio.routes');
 const logoRoutes = require('./routes/logo.routes');
 const romaneioPdfRoutes = require('./routes/romaneioPdf.routes');
 const appMotoristaRoutes = require('./routes/appMotorista.routes');
-
+const comprovacaoRoutes = require('./routes/comprovacao.routes');
 
 const app = express();
 
@@ -52,6 +52,7 @@ app.use('/api/rastreio', rastreioRoutes);
 app.use('/api/empresas', logoRoutes);
 app.use('/api/romaneio-pdf', romaneioPdfRoutes);
 app.use('/api/app', appMotoristaRoutes);
+app.use('/api/comprovacoes', comprovacaoRoutes);
 
 const PORT = process.env.PORT || 3000;
 
