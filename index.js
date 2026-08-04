@@ -20,6 +20,7 @@ const logoRoutes = require('./routes/logo.routes');
 const romaneioPdfRoutes = require('./routes/romaneioPdf.routes');
 const appMotoristaRoutes = require('./routes/appMotorista.routes');
 const comprovacaoRoutes = require('./routes/comprovacao.routes');
+const ocorrenciasRoutes = require('./routes/ocorrencias.routes');
 
 const app = express();
 
@@ -53,6 +54,8 @@ app.use('/api/empresas', logoRoutes);
 app.use('/api/romaneio-pdf', romaneioPdfRoutes);
 app.use('/api/app', appMotoristaRoutes);
 app.use('/api/comprovacoes', comprovacaoRoutes);
+app.use('/api/ocorrencias', ocorrenciasRoutes);
+
 
 const PORT = process.env.PORT || 3000;
 
