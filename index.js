@@ -16,6 +16,7 @@ const {
 const dashboardRoutes = require('./routes/dashboard.routes');
 const comprovanteRoutes = require('./routes/comprovante.routes');
 const rastreioRoutes = require('./routes/rastreio.routes');
+const mapaCargasRoutes = require('./routes/mapaCargas.routes');
 const logoRoutes = require('./routes/logo.routes');
 const romaneioPdfRoutes = require('./routes/romaneioPdf.routes');
 const appMotoristaRoutes = require('./routes/appMotorista.routes');
@@ -50,6 +51,7 @@ app.use('/api/dashboard', dashboardRoutes);
 danfeService.registerRoutes(app);
 app.use('/api/comprovante', comprovanteRoutes);
 app.use('/api/rastreio', rastreioRoutes);
+app.use('/api/mapa-cargas', mapaCargasRoutes);
 app.use('/api/empresas', logoRoutes);
 app.use('/api/romaneio-pdf', romaneioPdfRoutes);
 app.use('/api/app', appMotoristaRoutes);
