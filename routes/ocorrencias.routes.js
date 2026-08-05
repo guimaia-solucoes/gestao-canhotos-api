@@ -96,7 +96,8 @@ router.get('/:cod', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT * FROM public.ocorrencias
-        WHERE codocor = $1 AND codconta = $2 AND dhexclusao IS NULL`,
+        WHERE codocor = $1 AND codconta = $2 AND dhexclusao IS NULL
+		 ORDER BY DESCRICAO`,
       [cod, req.escopo.codconta]
     );
 
@@ -134,9 +135,9 @@ router.post('/', async (req, res) => {
         descricao,
         inteiro(req.body.ordem) ?? 0,
         req.body.ativo === 'N' ? 'N' : 'S',
-        bool(req.body.exige_foto),
-        bool(req.body.exige_observacao),
-        bool(req.body.finaliza_entrega),
+		req.body.exige_foto === 'N' ? 'N' : 'S',
+        req.body.exige_observacao === 'N' ? 'N' : 'S',
+		req.body.finaliza_entrega === 'N' ? 'N' : 'S',
         req.usuario?.codusu ?? null,
       ]
     );
@@ -189,13 +190,13 @@ router.put('/:cod', async (req, res) => {
     add('ativo', req.body.ativo === 'N' ? 'N' : 'S');
   }
   if (req.body.exige_foto !== undefined) {
-    add('exige_foto', bool(req.body.exige_foto));
+    add('exige_foto', req.body.exige_foto === 'N' ? 'N' : 'S');
   }
   if (req.body.exige_observacao !== undefined) {
-    add('exige_observacao', bool(req.body.exige_observacao));
+    add('exige_observacao', req.body.exige_observacao === 'N' ? 'N' : 'S');
   }
   if (req.body.finaliza_entrega !== undefined) {
-    add('finaliza_entrega', bool(req.body.finaliza_entrega));
+    add('finaliza_entrega', req.body.finaliza_entrega === 'N' ? 'N' : 'S');
   }
 
   if (campos.length === 0) {
