@@ -74,8 +74,17 @@ const PORT = process.env.PORT || 3000;
 function empresaDoBody(req, res) {
   const codemp = Number(req.body.codemp);
 
-  if (!Number.isInteger(codemp) || codemp <= 0) {
+  /*if (!Number.isInteger(codemp) || codemp <= 0) {
     res.status(400).json({ error: 'codemp é obrigatório.' });
+    return null;
+  }*/
+  
+  if (codemp === undefined || codemp === null || codemp === '') {
+    return req.escopo.empresas[0];
+
+    res.status(400).json({
+      error: 'Selecione a empresa. Você tem acesso a mais de uma.',
+    });
     return null;
   }
 
