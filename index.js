@@ -72,19 +72,23 @@ const PORT = process.env.PORT || 3000;
  * Devolve o codemp validado, ou null (já tendo respondido 403).
  */
 function empresaDoBody(req, res) {
-  const codemp = Number(req.body.codemp);
+  const bruto = req.body.codemp;
 
-  /*if (!Number.isInteger(codemp) || codemp <= 0) {
-    res.status(400).json({ error: 'codemp é obrigatório.' });
-    return null;
-  }*/
-  
-  if (codemp === undefined || codemp === null || codemp === '') {
-    return req.escopo.empresas[0];
+  // Number(undefined) é NaN, não undefined — a checagem tem de
+  // ser no valor cru, antes da conversão.
+  if (bruto === undefined || bruto === null || bruto === '') {
+    if (req.escopo.empresas.length === 1) return req.escopo.empresas[0];
 
     res.status(400).json({
       error: 'Selecione a empresa. Você tem acesso a mais de uma.',
     });
+    return null;
+  }
+
+  const codemp = Number(bruto);
+
+  if (!Number.isInteger(codemp) || codemp <= 0) {
+    res.status(400).json({ error: 'codemp inválido.' });
     return null;
   }
 
