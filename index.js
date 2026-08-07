@@ -138,6 +138,25 @@ app.get('/health', async (req, res) => {
   }
 });
 
+function usuarioDoRequest(req) {
+  return req.usuario || req.user || req.auth || {};
+}
+
+async function resolverCodemp(req) {
+  const u = usuarioDoRequest(req);
+  const direto = u.codemp ?? u.codEmp ?? u.cod_emp;
+  if (direto !== undefined && direto !== null && direto !== "") {
+    return Number(direto);
+  }
+  const codusu = u.codusu ?? u.id ?? u.sub;
+  if (codusu === undefined || codusu === null) return null;
+  const { rows } = await pool.query(
+    "SELECT codemp FROM public.usuarios WHERE codusu = $1 LIMIT 1",
+    [codusu]
+  );
+  return rows[0]?.codemp ?? null;
+}
+
 // ============================================================
 //  USUÁRIOS
 // ============================================================
@@ -929,23 +948,27 @@ const CAMPOS_DE_EXECUCAO = `
 
 
 app.delete("/romaneios/:oc", authMiddleware, async (req, res) => {
-  const codemp = await resolverCodemp(req);
-  if (!codemp) {
-    return res.status(400).json({
-      ok: false,
-      msg: "Não foi possível identificar a empresa do usuário logado.",
-    });
-  }
-
-  const oc = Number(req.params.oc);
-  if (!Number.isInteger(oc)) {
-    return res.status(400).json({ ok: false, msg: "Ordem de carga inválida." });
-  }
-
-  const forcar = String(req.query.forcar) === "true";
-  const cliente = await pool.connect();
+  let cliente;
 
   try {
+    const codemp = await resolverCodemp(req);
+    if (!codemp) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Não foi possível identificar a empresa do usuário logado.",
+      });
+    }
+
+    const oc = Number(req.params.oc);
+    if (!Number.isInteger(oc)) {
+      return res
+        .status(400)
+        .json({ ok: false, msg: "Ordem de carga inválida." });
+    }
+
+    const forcar = String(req.query.forcar) === "true";
+
+    cliente = await pool.connect();
     await cliente.query("BEGIN");
 
     // FOR UPDATE segura a linha: sem isso, duas telas apagando
@@ -958,8 +981,7 @@ app.delete("/romaneios/:oc", authMiddleware, async (req, res) => {
       [oc, codemp]
     );
 
-    const romaneio = romaneios[0];
-    if (!romaneio) {
+    if (!romaneios[0]) {
       await cliente.query("ROLLBACK");
       return res
         .status(404)
@@ -1015,7 +1037,9 @@ app.delete("/romaneios/:oc", authMiddleware, async (req, res) => {
       entregasLiberadas: liberadas,
     });
   } catch (err) {
-    await cliente.query("ROLLBACK");
+    // catch(() => {}) no rollback: se a transação nem chegou a
+    // abrir, o rollback também falha e esconderia o erro real.
+    if (cliente) await cliente.query("ROLLBACK").catch(() => {});
 
     // 23503 = a OC ainda é referenciada por alguma tabela que
     // não tratamos aqui.
@@ -1031,7 +1055,7 @@ app.delete("/romaneios/:oc", authMiddleware, async (req, res) => {
       .status(500)
       .json({ ok: false, msg: "Erro ao excluir a ordem de carga." });
   } finally {
-    cliente.release();
+    if (cliente) cliente.release();
   }
 });
 
@@ -1043,20 +1067,29 @@ app.delete("/romaneios/:oc", authMiddleware, async (req, res) => {
 //  continua no histórico. É o que a tela deve oferecer quando
 //  o DELETE devolver 409.
 
-app.patch("/romaneios/:oc/cancelar", authMiddleware, async (req, res) => {
-  const codemp = await resolverCodemp(req);
-  if (!codemp) {
-    return res.status(400).json({
-      ok: false,
-      msg: "Não foi possível identificar a empresa do usuário logado.",
-    });
-  }
 
-  const oc = Number(req.params.oc);
-  const liberarPendentes = req.body?.liberarPendentes !== false;
-  const cliente = await pool.connect();
+app.patch("/romaneios/:oc/cancelar", authMiddleware, async (req, res) => {
+  let cliente;
 
   try {
+    const codemp = await resolverCodemp(req);
+    if (!codemp) {
+      return res.status(400).json({
+        ok: false,
+        msg: "Não foi possível identificar a empresa do usuário logado.",
+      });
+    }
+
+    const oc = Number(req.params.oc);
+    if (!Number.isInteger(oc)) {
+      return res
+        .status(400)
+        .json({ ok: false, msg: "Ordem de carga inválida." });
+    }
+
+    const liberarPendentes = req.body?.liberarPendentes !== false;
+
+    cliente = await pool.connect();
     await cliente.query("BEGIN");
 
     const { rows } = await cliente.query(
@@ -1076,8 +1109,8 @@ app.patch("/romaneios/:oc/cancelar", authMiddleware, async (req, res) => {
 
     let liberadas = 0;
 
-    // Só as que ainda não rodaram voltam para a fila. As que
-    // já têm check-in ficam onde estão: é o registro do que
+    // Só as que ainda não rodaram voltam para a fila. As que já
+    // têm check-in ficam onde estão: é o registro do que
     // aconteceu de verdade.
     if (liberarPendentes) {
       const r = await cliente.query(
@@ -1101,13 +1134,13 @@ app.patch("/romaneios/:oc/cancelar", authMiddleware, async (req, res) => {
       entregasLiberadas: liberadas,
     });
   } catch (err) {
-    await cliente.query("ROLLBACK");
+    if (cliente) await cliente.query("ROLLBACK").catch(() => {});
     console.error("[romaneios:cancelar]", err);
     res
       .status(500)
       .json({ ok: false, msg: "Erro ao cancelar a ordem de carga." });
   } finally {
-    cliente.release();
+    if (cliente) cliente.release();
   }
 });
 
