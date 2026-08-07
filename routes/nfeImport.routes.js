@@ -1,9 +1,20 @@
+// ============================================================
+//  nfeImport.routes.js
+//  Importação de XMLs de NF-e (ZIP) — Entrega Fácil
+//  Caminho: routes/nfeImport.routes.js
+// ============================================================
+
 const express = require("express");
 const multer = require("multer");
 const AdmZip = require("adm-zip");
 const { XMLParser } = require("fast-xml-parser");
+
 const pool = require("../db/pool");
 const { authMiddleware } = require("../middleware/auth.middleware");
+const {
+  salvarDestinatario,
+  lerDestinatario,
+} = require("../services/destinatarios.service");
 
 const router = express.Router();
 
@@ -12,10 +23,16 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 },
 });
 
+// leadingZeros: false é obrigatório aqui.
+//
+// Sem isso o parser converte tag numérica em Number e come o
+// zero à esquerda: CNPJ "01234567000199" chega com 13 dígitos e
+// o CEP "07793870" com 7. O documento vira outro documento.
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
   removeNSPrefix: true,
+  numberParseOptions: { leadingZeros: false, hex: false, eNotation: false },
 });
 
 function toArray(maybeArray) {
@@ -27,6 +44,12 @@ function toNumber(v) {
   if (v === null || v === undefined || v === "") return null;
   const n = Number(String(v).replace(",", "."));
   return Number.isFinite(n) ? n : null;
+}
+
+function toTexto(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s === "" ? null : s;
 }
 
 // ============================================================
@@ -66,6 +89,10 @@ function resolverCodusu(req) {
   return codusu === undefined || codusu === null ? null : Number(codusu);
 }
 
+// ============================================================
+//  LEITURA DO XML
+// ============================================================
+
 function extrairItens(infNFe) {
   const dets = toArray(infNFe?.det);
 
@@ -75,26 +102,63 @@ function extrairItens(infNFe) {
 
     return {
       nItem: nItem ? Number(nItem) : null,
-      cProd: prod?.cProd || null,
-      xProd: prod?.xProd || null,
-      NCM: prod?.NCM || null,
-      CEST: prod?.CEST || null,
-      CFOP: prod?.CFOP || null,
-      uCom: prod?.uCom || null,
+      cProd: toTexto(prod?.cProd),
+      xProd: toTexto(prod?.xProd),
+      NCM: toTexto(prod?.NCM),
+      CEST: toTexto(prod?.CEST),
+      CFOP: toTexto(prod?.CFOP),
+      uCom: toTexto(prod?.uCom),
       qCom: toNumber(prod?.qCom),
       vUnCom: toNumber(prod?.vUnCom),
       vProd: toNumber(prod?.vProd),
-      cEAN: prod?.cEAN || null,
-      cEANTrib: prod?.cEANTrib || null,
-      uTrib: prod?.uTrib || null,
+      cEAN: toTexto(prod?.cEAN),
+      cEANTrib: toTexto(prod?.cEANTrib),
+      uTrib: toTexto(prod?.uTrib),
       qTrib: toNumber(prod?.qTrib),
       vUnTrib: toNumber(prod?.vUnTrib),
       vFrete: toNumber(prod?.vFrete),
       vDesc: toNumber(prod?.vDesc),
       vOutro: toNumber(prod?.vOutro),
-      indTot: prod?.indTot || null,
+      indTot: toTexto(prod?.indTot),
     };
   });
+}
+
+/**
+ * Monta o registro de entregas a partir do XML já parseado.
+ *
+ * O `destinatario` é o que voltou do cadastro: usar o documento
+ * e o telefone dele em vez de reler o XML garante que a entrega
+ * e o cadastro apontem para exatamente o mesmo cliente.
+ */
+function montarRegistroEntrega({ infNFe, chave, xml, codemp, codusu, destinatario }) {
+  const ide = infNFe?.ide;
+  const dest = infNFe?.dest;
+  const enderDest = dest?.enderDest || {};
+  const total = infNFe?.total?.ICMSTot;
+
+  const nNF = ide?.nNF ?? null;
+  const destNome = toTexto(dest?.xNome);
+
+  return {
+    codemp,
+    codusuinclusao: codusu,
+    numnota: nNF !== null ? String(nNF) : null,
+    cgccpf: destinatario?.cnpjcpf ?? toTexto(dest?.CNPJ ?? dest?.CPF),
+    endereco: toTexto(enderDest?.xLgr),
+    numend: toTexto(enderDest?.nro),
+    cidade: toTexto(enderDest?.xMun),
+    estado: toTexto(enderDest?.UF),
+    chavenfe: chave,
+    vlrnota: toNumber(total?.vNF),
+    nomeparc: destNome,
+    razaosocial: destNome,
+    nomebairro: toTexto(enderDest?.xBairro),
+    // O <fone> mora dentro de <enderDest>, não em <dest>.
+    // Antes lia do lugar errado e gravava sempre nulo.
+    telefone: destinatario?.fone ?? toTexto(enderDest?.fone ?? dest?.fone),
+    xml_nfe: xml || null,
+  };
 }
 
 // ============================================================
@@ -107,7 +171,9 @@ router.post(
   upload.single("arquivo"),
   async (req, res) => {
     if (!req.file) {
-      return res.status(400).json({ ok: false, msg: "Arquivo ZIP não enviado." });
+      return res
+        .status(400)
+        .json({ ok: false, msg: "Arquivo ZIP não enviado." });
     }
 
     const codemp = await resolverCodemp(req);
@@ -128,6 +194,7 @@ router.post(
       totalXml: 0,
       importados: 0,
       duplicados: 0,
+      destinatarios: 0,
       erros: [],
     };
 
@@ -143,45 +210,53 @@ router.post(
 
         const nfeRoot = obj?.nfeProc?.NFe ?? obj?.NFe;
         const infNFe = nfeRoot?.infNFe;
-        if (!infNFe) throw new Error("Estrutura XML inválida (infNFe não encontrado).");
+        if (!infNFe) {
+          throw new Error("Estrutura XML inválida (infNFe não encontrado).");
+        }
 
         const id = infNFe["@_Id"] || infNFe["Id"];
-        const chave = (id || "").replace(/^NFe/, "");
-        if (chave.length !== 44) throw new Error("Chave NFe inválida ou ausente.");
+        const chave = String(id || "").replace(/^NFe/, "");
+        if (chave.length !== 44) {
+          throw new Error("Chave NFe inválida ou ausente.");
+        }
 
-        const ide = infNFe?.ide;
-        const dest = infNFe?.dest;
-        const total = infNFe?.total?.ICMSTot;
-
-        const nNF = ide?.nNF || null;
-        const destCnpjCpf = dest?.CNPJ || dest?.CPF || null;
-        const destNome = dest?.xNome || null;
-        const vNF = total?.vNF || null;
-        const enderDest = dest?.enderDest || {};
-
-        const registro = {
-          codemp,
-          codusuinclusao: codusu,
-          numnota: nNF ? String(nNF) : null,
-          cgccpf: destCnpjCpf,
-          endereco: enderDest?.xLgr || null,
-          numend: enderDest?.nro || null,
-          cidade: enderDest?.xMun || null,
-          estado: enderDest?.UF || null,
-          chavenfe: chave,
-          vlrnota: vNF ? toNumber(vNF) : null,
-          nomeparc: destNome || null,
-          razaosocial: destNome || null,
-          nomebairro: enderDest?.xBairro || null,
-          telefone: dest?.fone || null,
-          xml_nfe: xml || null,
-        };
+        // ── Destinatário ──────────────────────────────────
+        //
+        // Roda antes da checagem de duplicidade de propósito:
+        // reprocessar um ZIP já importado preenche o cadastro
+        // de clientes retroativamente, sem duplicar nota.
+        //
+        // Erro aqui não derruba a nota — o cadastro é apoio, a
+        // entrega é o que o usuário veio importar.
+        let destinatario = null;
+        try {
+          destinatario = await salvarDestinatario(infNFe?.dest, {
+            codemp,
+            codusu,
+          });
+          if (destinatario) resultado.destinatarios++;
+        } catch (errDest) {
+          resultado.erros.push({
+            arquivo: e.entryName,
+            erro: `Destinatário: ${errDest?.message || String(errDest)}`,
+          });
+        }
 
         const jaExiste = await existeChaveNoBanco(chave, codemp);
         if (jaExiste) {
           resultado.duplicados++;
           continue;
         }
+
+        const registro = montarRegistroEntrega({
+          infNFe,
+          chave,
+          xml,
+          codemp,
+          codusu,
+          // Se o cadastro falhou, cai na leitura direta do XML.
+          destinatario: destinatario || lerDestinatario(infNFe?.dest),
+        });
 
         await inserirEntregaNoBanco(registro);
         resultado.importados++;
@@ -197,7 +272,9 @@ router.post(
   }
 );
 
-// ===== FUNÇÕES DE BANCO =====
+// ============================================================
+//  FUNÇÕES DE BANCO
+// ============================================================
 
 // Duplicidade é checada DENTRO da empresa. A chave da NFe é única no
 // país, mas empresas diferentes na mesma base precisam poder importar
