@@ -78,8 +78,42 @@ function lerDestinatario(dest) {
     pais: corta(e.xPais ?? e.xpais, 60) ?? 'BRASIL',
   };
 }
+const MUDOU_ENDERECO_UPDATE = `
+       cep        IS DISTINCT FROM NULLIF($16::text, '')
+    OR logradouro IS DISTINCT FROM NULLIF($9::text, '')
+    OR numero     IS DISTINCT FROM NULLIF($10::text, '')
+`;
 
-const SQL_UPSERT = `
+const SQL_UPDATE = `
+  UPDATE public.destinatarios SET
+    razaosocial  = COALESCE(NULLIF($4::text, ''),  razaosocial),
+    ie           = COALESCE(NULLIF($5::text, ''),  ie),
+    indiedest    = COALESCE($6::smallint,          indiedest),
+    email        = COALESCE(NULLIF($7::text, ''),  email),
+    fone         = COALESCE(NULLIF($8::text, ''),  fone),
+    logradouro   = COALESCE(NULLIF($9::text, ''),  logradouro),
+    numero       = COALESCE(NULLIF($10::text, ''), numero),
+    complemento  = COALESCE(NULLIF($11::text, ''), complemento),
+    bairro       = COALESCE(NULLIF($12::text, ''), bairro),
+    codmunicipio = COALESCE($13::integer,          codmunicipio),
+    municipio    = COALESCE(NULLIF($14::text, ''), municipio),
+    uf           = COALESCE(NULLIF($15::text, ''), uf),
+    cep          = COALESCE(NULLIF($16::text, ''), cep),
+    codpais      = COALESCE($17::integer,          codpais),
+    pais         = COALESCE(NULLIF($18::text, ''), pais),
+    latitude = CASE
+      WHEN coordenada_manual THEN latitude
+      WHEN ${MUDOU_ENDERECO_UPDATE} THEN NULL
+      ELSE latitude END,
+    longitude = CASE
+      WHEN coordenada_manual THEN longitude
+      WHEN ${MUDOU_ENDERECO_UPDATE} THEN NULL
+      ELSE longitude END
+  WHERE codemp = $1 AND cnpjcpf = $2::text
+  RETURNING *;
+`;
+
+const SQL_INSERT = `
   INSERT INTO public.destinatarios (
     codemp, cnpjcpf, tipopessoa, razaosocial, ie, indiedest, email, fone,
     logradouro, numero, complemento, bairro,
@@ -92,33 +126,7 @@ const SQL_UPSERT = `
     $19
   )
   ON CONFLICT (codemp, cnpjcpf) DO UPDATE SET
-    razaosocial  = COALESCE(NULLIF(EXCLUDED.razaosocial, ''), destinatarios.razaosocial),
-    ie           = COALESCE(NULLIF(EXCLUDED.ie, ''),          destinatarios.ie),
-    indiedest    = COALESCE(EXCLUDED.indiedest,               destinatarios.indiedest),
-    email        = COALESCE(NULLIF(EXCLUDED.email, ''),       destinatarios.email),
-    fone         = COALESCE(NULLIF(EXCLUDED.fone, ''),        destinatarios.fone),
-    logradouro   = COALESCE(NULLIF(EXCLUDED.logradouro, ''),  destinatarios.logradouro),
-    numero       = COALESCE(NULLIF(EXCLUDED.numero, ''),      destinatarios.numero),
-    complemento  = COALESCE(NULLIF(EXCLUDED.complemento, ''), destinatarios.complemento),
-    bairro       = COALESCE(NULLIF(EXCLUDED.bairro, ''),      destinatarios.bairro),
-    codmunicipio = COALESCE(EXCLUDED.codmunicipio,            destinatarios.codmunicipio),
-    municipio    = COALESCE(NULLIF(EXCLUDED.municipio, ''),   destinatarios.municipio),
-    uf           = COALESCE(NULLIF(EXCLUDED.uf, ''),          destinatarios.uf),
-    cep          = COALESCE(NULLIF(EXCLUDED.cep, ''),         destinatarios.cep),
-    codpais      = COALESCE(EXCLUDED.codpais,                 destinatarios.codpais),
-    pais         = COALESCE(NULLIF(EXCLUDED.pais, ''),        destinatarios.pais),
-    latitude = CASE
-      WHEN destinatarios.coordenada_manual THEN destinatarios.latitude
-      WHEN destinatarios.cep        IS DISTINCT FROM NULLIF(EXCLUDED.cep, '')
-        OR destinatarios.logradouro IS DISTINCT FROM NULLIF(EXCLUDED.logradouro, '')
-        OR destinatarios.numero     IS DISTINCT FROM NULLIF(EXCLUDED.numero, '')
-      THEN NULL ELSE destinatarios.latitude END,
-    longitude = CASE
-      WHEN destinatarios.coordenada_manual THEN destinatarios.longitude
-      WHEN destinatarios.cep        IS DISTINCT FROM NULLIF(EXCLUDED.cep, '')
-        OR destinatarios.logradouro IS DISTINCT FROM NULLIF(EXCLUDED.logradouro, '')
-        OR destinatarios.numero     IS DISTINCT FROM NULLIF(EXCLUDED.numero, '')
-      THEN NULL ELSE destinatarios.longitude END
+    razaosocial = COALESCE(NULLIF(EXCLUDED.razaosocial, ''), destinatarios.razaosocial)
   RETURNING *;
 `;
 
@@ -135,7 +143,8 @@ async function salvarDestinatario(dest, { codemp, codusu }, cliente = pool) {
   const d = lerDestinatario(dest);
   if (!d) return null;
 
-  const { rows } = await cliente.query(SQL_UPSERT, [
+  // $1..$18 — o mesmo bloco serve às duas queries.
+  const base = [
     codemp,
     d.cnpjcpf,
     d.tipopessoa,
@@ -154,11 +163,20 @@ async function salvarDestinatario(dest, { codemp, codusu }, cliente = pool) {
     d.cep,
     d.codpais,
     d.pais,
-    codusu ?? null,
-  ]);
+  ];
 
-  return rows[0] ?? null;
+  // O UPDATE não recebe codusuinclusao: quem cadastrou primeiro
+  // continua sendo quem cadastrou.
+  const atualizado = await cliente.query(SQL_UPDATE, base);
+  if (atualizado.rows[0]) return atualizado.rows[0];
+
+  const inserido = await cliente.query(SQL_INSERT, [...base, codusu ?? null]);
+  return inserido.rows[0] ?? null;
 }
+
+
+
+
 
 /** Endereço em uma linha, pronto para Nominatim ou Google. */
 function enderecoParaGeocodificar(d) {
