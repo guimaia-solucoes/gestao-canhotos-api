@@ -86,6 +86,7 @@ const MUDOU_ENDERECO_UPDATE = `
 
 const SQL_UPDATE = `
   UPDATE public.destinatarios SET
+    tipopessoa   = COALESCE(NULLIF($3::text, ''),  tipopessoa),
     razaosocial  = COALESCE(NULLIF($4::text, ''),  razaosocial),
     ie           = COALESCE(NULLIF($5::text, ''),  ie),
     indiedest    = COALESCE($6::smallint,          indiedest),
