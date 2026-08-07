@@ -389,7 +389,7 @@ app.get('/entregas', authMiddleware, escopoMiddleware, async (req, res) => {
              emp.nomefantasia AS empresa_nome, e.token_rastreio ,
 			 (select mot.nomeusu from public.romaneios rom, public.motoristas mot where rom.codemp = e.codemp and rom.ocromaneio = e.ordemcarga and rom.codmotorista = mot.codmotorista) as motorista,
 			 (select vei.placa from public.romaneios rom, public.veiculos vei where rom.codemp = e.codemp and rom.ocromaneio = e.ordemcarga and rom.codveiculo = vei.codveiculo) as veiculo,
-             e.cep			 
+             e.cep, distancia_checkin , distancia_assinatura, distancia_checkin_real_osrm,  tempodescarga 
         FROM public.entregas e
         JOIN public.empresas emp ON emp.codemp = e.codemp
        WHERE e.codemp = ANY($1::int[])
