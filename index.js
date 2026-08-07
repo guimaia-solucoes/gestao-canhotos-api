@@ -920,6 +920,198 @@ app.put('/romaneios/:ordemcarga', authMiddleware, escopoMiddleware, async (req, 
   }
 });
 
+
+const CAMPOS_DE_EXECUCAO = `
+  checkindh IS NOT NULL
+  OR checkoutdh IS NOT NULL
+  OR assinadodh IS NOT NULL
+`;
+
+
+app.delete("/romaneios/:oc", authMiddleware, async (req, res) => {
+  const codemp = await resolverCodemp(req);
+  if (!codemp) {
+    return res.status(400).json({
+      ok: false,
+      msg: "Não foi possível identificar a empresa do usuário logado.",
+    });
+  }
+
+  const oc = Number(req.params.oc);
+  if (!Number.isInteger(oc)) {
+    return res.status(400).json({ ok: false, msg: "Ordem de carga inválida." });
+  }
+
+  const forcar = String(req.query.forcar) === "true";
+  const cliente = await pool.connect();
+
+  try {
+    await cliente.query("BEGIN");
+
+    // FOR UPDATE segura a linha: sem isso, duas telas apagando
+    // a mesma OC ao mesmo tempo desvinculam as notas duas vezes.
+    const { rows: romaneios } = await cliente.query(
+      `SELECT ocromaneio, status, codmotorista
+         FROM public.romaneios
+        WHERE ocromaneio = $1 AND codemp = $2
+        FOR UPDATE`,
+      [oc, codemp]
+    );
+
+    const romaneio = romaneios[0];
+    if (!romaneio) {
+      await cliente.query("ROLLBACK");
+      return res
+        .status(404)
+        .json({ ok: false, msg: "Ordem de carga não encontrada." });
+    }
+
+    const { rows: contagem } = await cliente.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE ${CAMPOS_DE_EXECUCAO})::int AS executadas
+         FROM public.entregas
+        WHERE ordemcarga = $1 AND codemp = $2`,
+      [oc, codemp]
+    );
+
+    const { total, executadas } = contagem[0];
+
+    if (executadas > 0 && !forcar) {
+      await cliente.query("ROLLBACK");
+      return res.status(409).json({
+        ok: false,
+        msg:
+          `Esta ordem de carga já tem ${executadas} entrega(s) com check-in, ` +
+          `check-out ou assinatura. Cancele em vez de excluir para preservar ` +
+          `o histórico.`,
+        entregas: total,
+        executadas,
+        podeForcar: true,
+      });
+    }
+
+    // Desvincula: as notas voltam para a fila de formação de
+    // carga. seqcarga zera junto, senão a próxima OC herda uma
+    // sequência que não é dela.
+    const { rowCount: liberadas } = await cliente.query(
+      `UPDATE public.entregas
+          SET ordemcarga = NULL,
+              seqcarga = NULL
+        WHERE ordemcarga = $1 AND codemp = $2`,
+      [oc, codemp]
+    );
+
+    await cliente.query(
+      "DELETE FROM public.romaneios WHERE ocromaneio = $1 AND codemp = $2",
+      [oc, codemp]
+    );
+
+    await cliente.query("COMMIT");
+
+    res.json({
+      ok: true,
+      msg: `Ordem de carga ${oc} excluída. ${liberadas} entrega(s) liberada(s).`,
+      ocromaneio: oc,
+      entregasLiberadas: liberadas,
+    });
+  } catch (err) {
+    await cliente.query("ROLLBACK");
+
+    // 23503 = a OC ainda é referenciada por alguma tabela que
+    // não tratamos aqui.
+    if (err?.code === "23503") {
+      return res.status(409).json({
+        ok: false,
+        msg: "A ordem de carga está vinculada a outros registros e não pode ser excluída.",
+      });
+    }
+
+    console.error("[romaneios:delete]", err);
+    res
+      .status(500)
+      .json({ ok: false, msg: "Erro ao excluir a ordem de carga." });
+  } finally {
+    cliente.release();
+  }
+});
+
+// ============================================================
+//  PATCH /api/romaneios/:oc/cancelar
+// ============================================================
+//
+//  A alternativa para carga que já rodou: some da operação,
+//  continua no histórico. É o que a tela deve oferecer quando
+//  o DELETE devolver 409.
+
+app.patch("/romaneios/:oc/cancelar", authMiddleware, async (req, res) => {
+  const codemp = await resolverCodemp(req);
+  if (!codemp) {
+    return res.status(400).json({
+      ok: false,
+      msg: "Não foi possível identificar a empresa do usuário logado.",
+    });
+  }
+
+  const oc = Number(req.params.oc);
+  const liberarPendentes = req.body?.liberarPendentes !== false;
+  const cliente = await pool.connect();
+
+  try {
+    await cliente.query("BEGIN");
+
+    const { rows } = await cliente.query(
+      `UPDATE public.romaneios
+          SET status = 'CANCELADO'
+        WHERE ocromaneio = $1 AND codemp = $2
+        RETURNING ocromaneio, status`,
+      [oc, codemp]
+    );
+
+    if (!rows[0]) {
+      await cliente.query("ROLLBACK");
+      return res
+        .status(404)
+        .json({ ok: false, msg: "Ordem de carga não encontrada." });
+    }
+
+    let liberadas = 0;
+
+    // Só as que ainda não rodaram voltam para a fila. As que
+    // já têm check-in ficam onde estão: é o registro do que
+    // aconteceu de verdade.
+    if (liberarPendentes) {
+      const r = await cliente.query(
+        `UPDATE public.entregas
+            SET ordemcarga = NULL,
+                seqcarga = NULL
+          WHERE ordemcarga = $1
+            AND codemp = $2
+            AND NOT (${CAMPOS_DE_EXECUCAO})`,
+        [oc, codemp]
+      );
+      liberadas = r.rowCount;
+    }
+
+    await cliente.query("COMMIT");
+
+    res.json({
+      ok: true,
+      msg: `Ordem de carga ${oc} cancelada. ${liberadas} entrega(s) liberada(s).`,
+      item: rows[0],
+      entregasLiberadas: liberadas,
+    });
+  } catch (err) {
+    await cliente.query("ROLLBACK");
+    console.error("[romaneios:cancelar]", err);
+    res
+      .status(500)
+      .json({ ok: false, msg: "Erro ao cancelar a ordem de carga." });
+  } finally {
+    cliente.release();
+  }
+});
+
+
 // ============================================================
 //  EMPRESAS
 // ============================================================
